@@ -1,6 +1,6 @@
 include 'tests'
 
-rootProject.name = 'package-alarms-ibm'
+rootProject.name = 'package-alarms'
 
 gradle.ext.openwhisk = [
         version: '1.0.0-SNAPSHOT'

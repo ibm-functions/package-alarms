@@ -1,0 +1,24 @@
+sudo: required
+group: deprecated-2017Q3
+language: scala
+services:
+- docker
+install: true
+script:
+- "./tools/travis/build.sh"
+deploy:
+- provider: script
+  script: "./tools/travis/publish.sh ibmfunctions $TRAVIS_TAG"
+  on:
+    tags: true
+    all_branches: true
+    repo: ibm-functions/package-alarms
+- provider: script
+  script: "./tools/travis/publish.sh ibmfunctions latest"
+  on:
+    branch: master
+    repo: ibm-functions/package-alarms
+env:
+  global:
+  - secure: W0DdA6YEKBjutGMAa9d55wB+klpCw8VIyeNdQjqhSMXAS7p5llc0/KC1v7YZLFeeUaZZWbjC2d3K2gLg3grLxWrWP4TYxLcdlp+g3anlV+AQrvJJPesnmJ9vHGamSHFh5bH75npWu6h9RMjj5hgN4XpbI1YD8ntwyI2HbRYXQ9ojLeX5I7OYyQEqi/1KqbJL6X3KeUzXeREQH0qTo9LGNj8Z6XxZ7u4ARC7Xw1jN1k7Mwn2l1K/x1Xus1NnmyrCv7L2aiTIdMWHnlFdz/zunpOsUe9vkBxtlqnNVXRiqMKQRU13ZKc99mPbUUwTQLWf2t3hNQIopHzy6/f4RDytus4j5LcddCoF6e/liL8h2LnWRlPmUz72faVnUb7hMILK2jofplfMpZJPhd65bMccgx/HueDaRdvAjFICafGjr3e4nPiQ0tHZy4p6rz9xklCA4JlVs3l9h9c8bCtbsw+tcOoRSjY87ROJpeSCve5CJAh9DR/DgdRNy3CLlFXsNwwJHqLGCEQUVr7djeWq75bnEVzhG/n0iO7+Dre9wmjB7fTTuj7woTc1+AHyWgigaENMRAMGHudIbfQ1vmNYO0nqPhG39Dswc2z3dDOq8G5GfiYxtEgqvuGcL9de4FDHtssPrPU7cBZWYJijk0SZ7EE/G69UmFE0AfaS+crGY2i2BamE=
+  - secure: hRHUlnS+pMAVw6XYHk7ubEzIkyrs5AseyhawH03kwyx6uv7eH78QlURKVjNYFMSvMwVh8cfXgFJSZB9DT7mwKhXb4EPhNsg5EHkt3G3r8VTOo8Coy5V2UeMsDwwFv4WkEzMBRQeMyoHaYRqVNJ+zffG05Z05F8XCtSrsjnOmCc27jdgPCoN3eTq/sz4yoDzuA3I7GiFS5UOn6othAwIq1gRaUyQB2u1DqCrt3YoGNB4YW5M39Qzeos3nEBFMXAv0XMes4a/TWQYwHz69wxWs1by82Pycbb0O5P1ufJaAgDQqERsXbNk4TcMAb+v6Nf6o3My8ri/LAJgCqZKG4SYhTvSNFMtzSzfbzMHjc+04+pV9N/41tGNgubZLy3CSCnRZdFoptsBU+DWh4o8wZCh314/R0Sw57t6HJpJ+PQhPxny9a6Y007fUz2zqABriJ6G3Q0em1uMzKmdHb70WUN5AczTH59paqDlIPhq5Pf3nA0xF1UVPStnPZ1fW/u/kj9yOaVSFWWlSdGI3Q02a2FfQgLS0E4pSixCDftlnKZWcnzCKA0wKn3h/xtYTiegQNHHSO9yeWpQuk/nLSBw74jQ2wirb37ua8xjyUa9UCxB7y+gpU040kNg3JF7862XAdUvFWmzVv4dNxqIX41bUm+1GxvZ2+w6IvUbu6jHGPIma4xU=
