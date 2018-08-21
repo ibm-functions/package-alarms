@@ -1,0 +1,2 @@
+ext.dockerImageName = 'alarms-provider-ibm'
+apply from: 'gradle/docker.gradle'

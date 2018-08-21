@@ -1,0 +1,9 @@
+{
+  "name": "alarms-trigger-ibm",
+  "version": "1.0.0",
+  "description": "A service to trigger openwhisk triggers based on cron notation",
+  "license": "ISC",
+  "dependencies": {
+    "@ibm-functions/iam-token-manager": "^1.0.0"
+  }
+}
