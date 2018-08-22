@@ -15,10 +15,10 @@ function getOpenWhiskConfig(triggerData) {
 function addAdditionalData(params) {
     var additionalData = {};
 
-    //if (process.env.__OW_IAM_NAMESPACE_API_KEY) {
-    //     additionalData.iamApikey = '_8EVRClTtnTmmpW5rUEnRzZF8_GtZgDcMhF1NB04QETT';
-    //     additionalData.iamUrl = 'https://iam.bluemix.net/identity/token';
-    //}
+    if (process.env.__OW_IAM_NAMESPACE_API_KEY) {
+        additionalData.iamApikey = process.env.__OW_IAM_NAMESPACE_API_KEY;
+        additionalData.iamUrl = 'https://iam.bluemix.net/identity/token';
+    }
 
     params.additionalData = JSON.stringify(additionalData);
 }
