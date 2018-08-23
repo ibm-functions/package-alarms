@@ -1,0 +1,37 @@
+apply plugin: 'scala'
+apply plugin: 'eclipse'
+compileTestScala.options.encoding = 'UTF-8'
+
+evaluationDependsOn(':alarmtests')
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+sourceSets.test.scala.srcDirs =
+        sourceSets.test.scala.srcDirs + project(':alarmtests').sourceSets.test.scala.srcDirs
+
+tasks.withType(Test) {
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+    outputs.upToDateWhen { false } // force tests to run every time
+};
+
+task testHealth(type: Test) {
+    systemProperty 'test.router', 'true'
+    include 'system/health/**'
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile project(':alarmtests')
+    compile project(':alarmtests').sourceSets.test.output
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}

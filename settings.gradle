@@ -1,3 +1,7 @@
+def owAlarmsPath = './openwhisk-alarms'
+def owAlarmsDirectory = new File(owAlarmsPath)
+
+include 'alarmtests'; project(':alarmtests').projectDir = new File(owAlarmsDirectory, 'tests')
 include 'tests'
 
 rootProject.name = 'package-alarms'

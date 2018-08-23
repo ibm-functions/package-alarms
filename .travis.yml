@@ -3,6 +3,8 @@ group: deprecated-2017Q3
 language: scala
 services:
 - docker
+before_install:
+- ./tools/travis/setup.sh
 install: true
 script:
 - "./tools/travis/build.sh"
