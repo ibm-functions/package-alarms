@@ -12,6 +12,14 @@ function getOpenWhiskConfig(triggerData) {
     }
 }
 
+function constructTriggerID(triggerData) {
+    var triggerID = `${triggerData.namespace}/${triggerData.name}`;
+    if (triggerData.apikey && (!triggerData.additionalData || !triggerData.additionalData.iamApikey)) {
+        triggerID = `${triggerData.apikey}/${triggerID}`;
+    }
+    return triggerID;
+}
+
 function addAdditionalData(params) {
     var additionalData = {};
 
@@ -25,5 +33,6 @@ function addAdditionalData(params) {
 
 module.exports = {
     'addAdditionalData': addAdditionalData,
-    'getOpenWhiskConfig': getOpenWhiskConfig
+    'getOpenWhiskConfig': getOpenWhiskConfig,
+    'constructTriggerID': constructTriggerID
 };
