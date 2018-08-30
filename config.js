@@ -25,7 +25,7 @@ function addAdditionalData(params) {
 
     if (process.env.__OW_IAM_NAMESPACE_API_KEY) {
         additionalData.iamApikey = process.env.__OW_IAM_NAMESPACE_API_KEY;
-        additionalData.iamUrl = 'https://iam.bluemix.net/identity/token';
+        additionalData.iamUrl = process.env.__OW_IAM_API_URL;
     }
 
     params.additionalData = JSON.stringify(additionalData);
