@@ -1,5 +1,7 @@
 const iam = require('@ibm-functions/iam-token-manager');
 
+var tokenManagers = {};
+
 function handleAuth(triggerData) {
 
     if (triggerData.additionalData && triggerData.additionalData.iamApikey) {
@@ -24,14 +26,14 @@ function handleAuth(triggerData) {
 
 function getToken(triggerData) {
 
-    if (!triggerData.additionalData.tokenManager) {
+    if (!(triggerData.additionalData.iamApikey in tokenManagers)) {
         var tm = new iam({
             iamApikey: triggerData.additionalData.iamApikey,
             iamUrl: triggerData.additionalData.iamUrl
         });
-        triggerData.additionalData.tokenManager = tm;
+        tokenManagers[triggerData.additionalData.iamApikey] = tm;
     }
-    return triggerData.additionalData.tokenManager.getToken();
+    return tokenManagers[triggerData.additionalData.iamApikey].getToken();
 }
 
 module.exports = {
