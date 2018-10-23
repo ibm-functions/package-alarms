@@ -26,6 +26,7 @@ function addAdditionalData(params) {
     if (process.env.__OW_IAM_NAMESPACE_API_KEY) {
         additionalData.iamApikey = process.env.__OW_IAM_NAMESPACE_API_KEY;
         additionalData.iamUrl = process.env.__OW_IAM_API_URL;
+        additionalData.namespaceCRN = process.env.__OW_NAMESPACE_CRN;
     }
 
     params.additionalData = JSON.stringify(additionalData);
