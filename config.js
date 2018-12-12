@@ -32,8 +32,13 @@ function addAdditionalData(params) {
     params.additionalData = JSON.stringify(additionalData);
 }
 
+function addCustomAnnotations(params) {
+    //insert code here to add annotations onto the trigger
+}
+
 module.exports = {
     'addAdditionalData': addAdditionalData,
+    'addCustomAnnotations': addCustomAnnotations,
     'getOpenWhiskConfig': getOpenWhiskConfig,
     'constructTriggerID': constructTriggerID
 };

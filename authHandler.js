@@ -2,13 +2,14 @@ const iam = require('@ibm-functions/iam-token-manager');
 
 var tokenManagers = {};
 
-function handleAuth(triggerData) {
+function handleAuth(triggerData, options) {
 
     if (triggerData.additionalData && triggerData.additionalData.iamApikey) {
         return new Promise(function(resolve, reject) {
             getToken(triggerData)
             .then(token => {
-                resolve({bearer: token});
+                options.auth = {bearer: token};
+                resolve(options);
             })
             .catch(err => {
                reject(err);
@@ -17,10 +18,11 @@ function handleAuth(triggerData) {
     }
     else {
         var auth = triggerData.apikey.split(':');
-        return Promise.resolve({
+        options.auth = {
             user: auth[0],
             pass: auth[1]
-        });
+        };
+        return Promise.resolve(options);
     }
 }
 
