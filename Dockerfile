@@ -1,4 +1,4 @@
-FROM openwhisk/alarmprovider:1.12.1
+FROM openwhisk/alarmprovider:1.12.2
 
 COPY package.json /alarmsTrigger/
 RUN cd /alarmsTrigger && npm install --production
