@@ -9,6 +9,9 @@ function handleAuth(triggerData, options) {
             getToken(triggerData)
             .then(token => {
                 options.auth = {bearer: token};
+                if (options.method === 'delete') {
+                    options.headers = {'x-functions-firedonce': 'true'};
+                }
                 resolve(options);
             })
             .catch(err => {
