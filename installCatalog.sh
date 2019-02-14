@@ -7,7 +7,5 @@ fi
 
 cp config.js ./openwhisk-alarms/action/lib/config.js
 
-export ACTION_RUNTIME_VERSION=nodejs:10
-
 cd openwhisk-alarms
 ./installCatalog.sh $1 $2 $3 $4 $5 $6
