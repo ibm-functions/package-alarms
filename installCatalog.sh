@@ -6,6 +6,7 @@ if [ ! -d ./openwhisk-alarms ]; then
 fi
 
 cp config.js ./openwhisk-alarms/action/lib/config.js
+cp installAlarms.sh ./openwhisk-alarms/installCatalog.sh
 
 cd openwhisk-alarms
 ./installCatalog.sh $1 $2 $3 $4 $5 $6
