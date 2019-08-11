@@ -1,4 +1,4 @@
-FROM openwhisk/alarmprovider:0a24b1b
+FROM openwhisk/alarmprovider:fa43d51
 
 RUN apt-get update && apt-get upgrade -y
 
