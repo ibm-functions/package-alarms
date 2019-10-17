@@ -1,8 +1,8 @@
-FROM openwhisk/alarmprovider:8b30d12
+FROM node:10.16.3
 
 RUN apt-get update && apt-get upgrade -y
 
-COPY package.json /alarmsTrigger/
+ADD package.json /alarmsTrigger/
 RUN cd /alarmsTrigger && npm install --production
 
-COPY authHandler.js /alarmsTrigger/lib/
+ADD provider/. /alarmsTrigger/
