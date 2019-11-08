@@ -76,16 +76,15 @@ module.exports = function(dbURL, dbName) {
         });
     };
 
-    this.getTrigger = function(triggerID, retry = true) {
+    this.getTrigger = function(triggerID, retry = false) {
 
         return new Promise(function(resolve, reject) {
-
-            var qName = triggerID.split('/');
-            var id = retry ? triggerID : qName[0] + '/_/' + qName[2];
-            utilsDB.db.get(id, function (err, existing) {
+            utilsDB.db.get(triggerID, function (err, existing) {
                 if (err) {
+                    var triggerSegments = triggerID.split('/');
+                    var triggerName = triggerSegments.length > 2 ? `/${triggerSegments[1]}/${triggerSegments[2]}` : `/${triggerID}`;
                     if (retry) {
-                        utilsDB.getTrigger(triggerID, false)
+                        utilsDB.getTriggerByName(triggerName)
                         .then(doc => {
                             resolve(doc);
                         })
@@ -93,11 +92,26 @@ module.exports = function(dbURL, dbName) {
                             reject(err);
                         });
                     } else {
-                        var name = '/' + qName[1] + '/' + qName[2];
-                        reject(common.sendError(err.statusCode, 'could not find trigger ' + name + ' in the database'));
+                        reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
                     }
                 } else {
                     resolve(existing);
+                }
+            });
+        });
+    };
+
+    this.getTriggerByName = function(triggerName) {
+
+        return new Promise(function(resolve, reject) {
+            utilsDB.db.view('triggerViews', 'all_triggers', {include_docs: true, key: triggerName}, function(err, body) {
+                if (!err) {
+                    body.rows.forEach(function (trigger) {
+                        resolve(trigger.doc);
+                    });
+                }
+                else {
+                    reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
                 }
             });
         });
@@ -174,9 +188,9 @@ module.exports = function(dbURL, dbName) {
                     });
                 }
                 else {
-                    var qName = triggerID.split('/');
-                    var name = '/' + qName[1] + '/' + qName[2];
-                    reject(common.sendError(err.statusCode, 'could not find trigger ' + name + ' in the database'));
+                    var triggerSegments = triggerID.split('/');
+                    var triggerName = triggerSegments.length > 2 ? `/${triggerSegments[1]}/${triggerSegments[2]}` : `/${triggerID}`;
+                    reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
                 }
             });
         });

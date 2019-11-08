@@ -19,7 +19,6 @@ const CronJob = require('cron').CronJob;
 const moment = require('moment');
 const common = require('./lib/common');
 const Database = require('./lib/Database');
-const config = require('./lib/config');
 
 function main(params) {
 
@@ -34,7 +33,13 @@ function main(params) {
         namespace: triggerParts.namespace,
         additionalData: common.constructObject(params.additionalData),
     };
-    var triggerID = config.constructTriggerID(triggerData);
+
+    var isCFNameSpace = false;
+    var triggerID = `${triggerData.namespace}/${triggerData.name}`;
+    if (triggerData.apikey && (!triggerData.additionalData || !triggerData.additionalData.iamApikey)) {
+        triggerID = `${triggerData.apikey}/${triggerID}`;
+        isCFNameSpace = true;
+    }
 
     var workers = params.workers instanceof Array ? params.workers : [];
     var deleteAfterFireArray = ['false', 'true', 'rules'];
@@ -174,7 +179,7 @@ function main(params) {
             common.verifyTriggerAuth(triggerData, false)
             .then(() => {
                 db = new Database(params.DB_URL, params.DB_NAME);
-                return db.getTrigger(triggerID);
+                return db.getTrigger(triggerID, isCFNameSpace);
             })
             .then(doc => {
                 var body = {
@@ -224,7 +229,7 @@ function main(params) {
             common.verifyTriggerAuth(triggerData, false)
             .then(() => {
                 db = new Database(params.DB_URL, params.DB_NAME);
-                return db.getTrigger(triggerID);
+                return db.getTrigger(triggerID, isCFNameSpace);
             })
             .then(trigger => {
                 if (trigger.status && trigger.status.reason && trigger.status.reason.kind === 'ADMIN') {
@@ -342,7 +347,7 @@ function main(params) {
             common.verifyTriggerAuth(triggerData, true)
             .then(() => {
                 db = new Database(params.DB_URL, params.DB_NAME);
-                return db.getTrigger(triggerID);
+                return db.getTrigger(triggerID, isCFNameSpace);
             })
             .then(trigger => {
                 return db.disableTrigger(trigger._id, trigger, 0, 'deleting');
