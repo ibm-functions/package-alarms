@@ -70,7 +70,19 @@ module.exports = function(dbURL, dbName) {
                     resolve();
                 }
                 else {
-                    reject(common.sendError(err.statusCode, 'error creating alarm trigger.', err.message));
+                    const errorMsg = 'error creating alarm trigger.';
+                    if (err.statusCode === 409) {
+                        //trigger already exists so update it
+                        utilsDB.getTrigger(triggerID)
+                        .then(trigger => utilsDB.disableTrigger(triggerID, trigger, 0, 'updating'))
+                        .then(() => utilsDB.getTrigger(triggerID))
+                        .then(trigger => utilsDB.updateTrigger(triggerID, newTrigger, {_rev: trigger._rev}, 0))
+                        .then(() => resolve())
+                        .catch(err => reject(common.sendError(err.statusCode, errorMsg, err.message)));
+                    }
+                    else {
+                        reject(common.sendError(err.statusCode, errorMsg, err.message));
+                    }
                 }
             });
         });
@@ -85,12 +97,8 @@ module.exports = function(dbURL, dbName) {
                     var triggerName = triggerSegments.length > 2 ? `/${triggerSegments[1]}/${triggerSegments[2]}` : `/${triggerID}`;
                     if (retry) {
                         utilsDB.getTriggerByName(triggerName)
-                        .then(doc => {
-                            resolve(doc);
-                        })
-                        .catch(err => {
-                            reject(err);
-                        });
+                        .then(doc => resolve(doc))
+                        .catch(err => reject(err));
                     } else {
                         reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
                     }
@@ -141,12 +149,8 @@ module.exports = function(dbURL, dbName) {
                     if (err.statusCode === 409 && retryCount < 5) {
                         setTimeout(function () {
                             utilsDB.disableTrigger(triggerID, trigger, (retryCount + 1))
-                            .then(id => {
-                                resolve(id);
-                            })
-                            .catch(err => {
-                                reject(err);
-                            });
+                            .then(id => resolve(id))
+                            .catch(err => reject(err));
                         }, 1000);
                     }
                     else {
@@ -173,9 +177,7 @@ module.exports = function(dbURL, dbName) {
                                 setTimeout(function () {
                                     utilsDB.deleteTrigger(triggerID, (retryCount + 1))
                                     .then(resolve)
-                                    .catch(err => {
-                                        reject(err);
-                                    });
+                                    .catch(err => reject(err));
                                 }, 1000);
                             }
                             else {
@@ -215,12 +217,8 @@ module.exports = function(dbURL, dbName) {
                     if (err.statusCode === 409 && retryCount < 5) {
                         setTimeout(function () {
                             utilsDB.updateTrigger(triggerID, trigger, params, (retryCount + 1))
-                            .then(id => {
-                                resolve(id);
-                            })
-                            .catch(err => {
-                                reject(err);
-                            });
+                            .then(id => resolve(id))
+                            .catch(err => reject(err));
                         }, 1000);
                     }
                     else {
