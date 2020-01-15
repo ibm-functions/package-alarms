@@ -127,11 +127,11 @@ module.exports = function(logger, triggerDB, redisClient) {
                             triggerData.triggersLeft++;
                         }
 
-                        if (statusCode && statusCode === HttpStatus.NOT_FOUND) {
+                        if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(response.headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
-                        else if (statusCode && shouldDisableTrigger(statusCode)) {
+                        else if (statusCode &&  shouldDisableTrigger(statusCode, response.headers)) {
                             var message;
                             try {
                                 message = error.error.errorMessage;
@@ -177,9 +177,13 @@ module.exports = function(logger, triggerDB, redisClient) {
         });
     }
 
-    function shouldDisableTrigger(statusCode) {
-        return ((statusCode >= 400 && statusCode < 500) &&
+    function shouldDisableTrigger(statusCode, headers) {
+        return ((statusCode >= 400 && statusCode < 500) && hasTransactionIdHeader(headers) &&
             [HttpStatus.REQUEST_TIMEOUT, HttpStatus.TOO_MANY_REQUESTS, HttpStatus.CONFLICT].indexOf(statusCode) === -1);
+    }
+
+    function hasTransactionIdHeader(headers) {
+        return headers && headers['x-request-id'];
     }
 
     function shouldFireTrigger(trigger) {
@@ -316,7 +320,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                             url: uri
                         }, function (error, response) {
                             //disable trigger in database if trigger is dead
-                            if (!error && shouldDisableTrigger(response.statusCode)) {
+                            if (!error && shouldDisableTrigger(response.statusCode, response.headers)) {
                                 var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
                                 disableTrigger(triggerIdentifier, response.statusCode, message);
                                 logger.error(method, 'trigger', triggerIdentifier, 'has been disabled due to status code:', response.statusCode);
