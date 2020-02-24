@@ -1,4 +1,4 @@
-FROM node:10.16.3
+FROM node:10.19.0
 
 RUN apt-get update && apt-get upgrade -y
 
