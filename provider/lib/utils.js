@@ -115,6 +115,7 @@ module.exports = function(logger, triggerDB, redisClient) {
             }, function(error, response) {
                 try {
                     var statusCode = !error ? response.statusCode : error.statusCode;
+                    var headers = response ? response.headers : undefined;
                     var triggerIdentifier = triggerData.triggerID;
                     logger.info(method, triggerIdentifier, 'http post request, STATUS:', statusCode);
 
@@ -127,11 +128,11 @@ module.exports = function(logger, triggerDB, redisClient) {
                             triggerData.triggersLeft++;
                         }
 
-                        if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(response.headers)) {
+                        if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
-                        else if (statusCode &&  shouldDisableTrigger(statusCode, response.headers)) {
+                        else if (statusCode &&  shouldDisableTrigger(statusCode, headers)) {
                             var message;
                             try {
                                 message = error.error.errorMessage;
