@@ -29,7 +29,6 @@ var logger = require('./Logger');
 
 var ProviderUtils = require('./lib/utils.js');
 var ProviderHealth = require('./lib/health.js');
-var ProviderRAS = require('./lib/ras.js');
 var ProviderActivation = require('./lib/active.js');
 var constants = require('./lib/constants.js');
 
@@ -206,9 +205,6 @@ function init(server) {
         var providerRAS = new ProviderRAS();
         var providerHealth = new ProviderHealth(logger, providerUtils);
         var providerActivation = new ProviderActivation(logger, providerUtils);
-
-        // RAS Endpoint
-        app.get(providerRAS.endPoint, providerRAS.ras);
 
         // Health Endpoint
         app.get(providerHealth.endPoint, providerUtils.authorize, providerHealth.health);
