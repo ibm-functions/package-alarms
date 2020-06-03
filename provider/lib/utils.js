@@ -132,7 +132,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
-                        else if (statusCode &&  shouldDisableTrigger(statusCode, headers)) {
+                        else if (statusCode && shouldDisableTrigger(statusCode, headers)) {
                             var message;
                             try {
                                 message = error.error.errorMessage;
@@ -179,7 +179,7 @@ module.exports = function(logger, triggerDB, redisClient) {
     }
 
     function shouldDisableTrigger(statusCode, headers) {
-        return ((statusCode >= 400 && statusCode < 500) && hasTransactionIdHeader(headers) &&
+        return statusCode === HttpStatus.BAD_REQUEST || ((statusCode > 400 && statusCode < 500) && hasTransactionIdHeader(headers) &&
             [HttpStatus.REQUEST_TIMEOUT, HttpStatus.TOO_MANY_REQUESTS, HttpStatus.CONFLICT].indexOf(statusCode) === -1);
     }
 
