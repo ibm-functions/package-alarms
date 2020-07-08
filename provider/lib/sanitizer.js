@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-module.exports = function(logger, utils) {
+module.exports = function(logger, manager) {
 
     var self = this;
 
@@ -23,9 +23,9 @@ module.exports = function(logger, utils) {
         var method = 'deleteTriggerFromDB';
 
         //delete from database
-        utils.db.get(triggerID, function (err, existing) {
+        manager.db.get(triggerID, function (err, existing) {
             if (!err) {
-                utils.db.destroy(existing._id, existing._rev, function (err) {
+                manager.db.destroy(existing._id, existing._rev, function (err) {
                     if (err) {
                         if (err.statusCode === 409 && retryCount < 5) {
                             setTimeout(function () {
@@ -51,7 +51,7 @@ module.exports = function(logger, utils) {
         var method = 'deleteTriggerAndRules';
 
         var triggerIdentifier = triggerData.triggerID;
-        utils.authRequest(triggerData, {
+        manager.authRequest(triggerData, {
             method: 'get',
             uri: triggerData.uri
         }, function(error, response, body) {
@@ -70,7 +70,7 @@ module.exports = function(logger, utils) {
                             var jsonBody = JSON.parse(body);
                             for (var rule in jsonBody.rules) {
                                 var qualifiedName = rule.split('/');
-                                var uri = utils.uriHost + '/api/v1/namespaces/' + qualifiedName[0] + '/rules/' + qualifiedName[1];
+                                var uri = manager.uriHost + '/api/v1/namespaces/' + qualifiedName[0] + '/rules/' + qualifiedName[1];
                                 self.deleteRule(triggerData, rule, uri, 0);
                             }
                         }
@@ -92,7 +92,7 @@ module.exports = function(logger, utils) {
         return new Promise(function(resolve, reject) {
 
             var triggerIdentifier = triggerData.triggerID;
-            utils.authRequest(triggerData, {
+            manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
             }, function (error, response) {
@@ -123,7 +123,7 @@ module.exports = function(logger, utils) {
     this.deleteRule = function(triggerData, rule, uri, retryCount) {
         var method = 'deleteRule';
 
-        utils.authRequest(triggerData, {
+        manager.authRequest(triggerData, {
             method: 'delete',
             uri: uri
         }, function(error, response) {
@@ -148,7 +148,7 @@ module.exports = function(logger, utils) {
         var method = 'deleteTriggerFeed';
 
         return new Promise(function(resolve, reject) {
-            utils.db.get(triggerID, function (err, existing) {
+            manager.db.get(triggerID, function (err, existing) {
                 if (!err) {
                     var updatedTrigger = existing;
                     var status = {
@@ -158,7 +158,7 @@ module.exports = function(logger, utils) {
                     };
                     updatedTrigger.status = status;
 
-                    utils.db.insert(updatedTrigger, triggerID, function (err) {
+                    manager.db.insert(updatedTrigger, triggerID, function (err) {
                         if (err) {
                             reject(err);
                         }

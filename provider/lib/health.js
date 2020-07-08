@@ -19,7 +19,7 @@ var si = require('systeminformation');
 var v8 = require('v8');
 var _ = require('lodash');
 
-module.exports = function(logger, utils) {
+module.exports = function(logger, manager) {
 
     // Health Endpoint
     this.endPoint = '/health';
@@ -33,7 +33,7 @@ module.exports = function(logger, utils) {
     // Health Logic
     this.health = function (req, res) {
 
-        var stats = {triggerCount: Object.keys(utils.triggers).length};
+        var stats = {triggerCount: Object.keys(manager.triggers).length};
 
         // get all system stats in parallel
         Promise.all([
@@ -41,7 +41,7 @@ module.exports = function(logger, utils) {
             si.currentLoad(),
             si.fsSize(),
             si.networkStats(),
-            si.inetLatency(utils.routerHost)
+            si.inetLatency(manager.routerHost)
         ])
         .then(results => {
             stats.triggerMonitor = monitorStatus;
@@ -63,8 +63,8 @@ module.exports = function(logger, utils) {
         var method = 'monitor';
 
         if (triggerName) {
-            monitorStatus = Object.assign({}, utils.monitorStatus);
-            utils.monitorStatus = {};
+            monitorStatus = Object.assign({}, manager.monitorStatus);
+            manager.monitorStatus = {};
 
             var monitorStatusSize = Object.keys(monitorStatus).length;
             if (monitorStatusSize < 5) {
@@ -75,15 +75,15 @@ module.exports = function(logger, utils) {
             var existingID = `${apikey}/_/${triggerName}`;
 
             //delete trigger feed from database
-            utils.sanitizer.deleteTriggerFromDB(existingID, 0);
+            manager.sanitizer.deleteTriggerFromDB(existingID, 0);
 
             //delete the trigger
             var triggerData = {
                 apikey: apikey,
-                uri: utils.uriHost + '/api/v1/namespaces/_/triggers/' + triggerName,
+                uri: manager.uriHost + '/api/v1/namespaces/_/triggers/' + triggerName,
                 triggerID: existingID
             };
-            utils.sanitizer.deleteTrigger(triggerData, 0)
+            manager.sanitizer.deleteTrigger(triggerData, 0)
             .then((info) => {
                 logger.info(method, existingID, info);
             })
@@ -96,14 +96,14 @@ module.exports = function(logger, utils) {
         }
 
         //create new alarm trigger
-        triggerName = 'alarms_' + utils.worker + utils.host + '_' + Date.now();
+        triggerName = 'alarms_' + manager.worker + manager.host + '_' + Date.now();
         var alarmType = alarmTypes[alarmTypeIndex];
 
         //update status monitor object
-        utils.monitorStatus.triggerName = triggerName;
-        utils.monitorStatus.triggerType = alarmType;
+        manager.monitorStatus.triggerName = triggerName;
+        manager.monitorStatus.triggerType = alarmType;
 
-        var triggerURL = utils.uriHost + '/api/v1/namespaces/_/triggers/' + triggerName;
+        var triggerURL = manager.uriHost + '/api/v1/namespaces/_/triggers/' + triggerName;
         var triggerID = `${apikey}/_/${triggerName}`;
         createTrigger(triggerURL, apikey)
         .then((info) => {
@@ -125,8 +125,8 @@ module.exports = function(logger, utils) {
             namespace: '_',
             payload: {},
             maxTriggers: -1,
-            worker: utils.worker,
-            monitor: utils.host
+            worker: manager.worker,
+            monitor: manager.host
         };
 
         var minuteInterval = 1000 * 60;
@@ -151,7 +151,7 @@ module.exports = function(logger, utils) {
         var method = 'createTrigger';
 
         return new Promise(function(resolve, reject) {
-            utils.authRequest({apikey: apikey}, {
+            manager.authRequest({apikey: apikey}, {
                 method: 'put',
                 uri: triggerURL,
                 json: true,
@@ -170,7 +170,7 @@ module.exports = function(logger, utils) {
     function createTriggerInDB (triggerID, newTrigger) {
         var method = 'createTriggerInDB';
 
-        utils.db.insert(newTrigger, triggerID, function (err) {
+        manager.db.insert(newTrigger, triggerID, function (err) {
             if (!err) {
                 logger.info(method, triggerID, 'successfully inserted monitoring trigger');
             }

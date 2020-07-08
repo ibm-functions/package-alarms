@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-module.exports = function(logger, utils) {
+module.exports = function(logger, manager) {
 
   // Active Endpoint
   this.endPoint = '/active';
@@ -26,10 +26,10 @@ module.exports = function(logger, utils) {
       var method = 'active';
 
       var response = {
-          worker: utils.worker,
-          host: utils.host,
+          worker: manager.worker,
+          host: manager.host,
           hostMachine: hostMachine,
-          active: utils.host === utils.activeHost
+          active: manager.host === manager.activeHost
       };
 
       if (req.query && req.query.active) {
@@ -41,14 +41,14 @@ module.exports = function(logger, utils) {
               return;
           }
 
-          var redundantHost = utils.host === `${utils.hostPrefix}0` ? `${utils.hostPrefix}1` : `${utils.hostPrefix}0`;
-          var activeHost = query === 'true' ? utils.host : redundantHost;
-          if (utils.activeHost !== activeHost) {
-              if (utils.redisClient) {
-                  utils.redisClient.hsetAsync(utils.redisKey, utils.redisField, activeHost)
+          var redundantHost = manager.host === `${manager.hostPrefix}0` ? `${manager.hostPrefix}1` : `${manager.hostPrefix}0`;
+          var activeHost = query === 'true' ? manager.host : redundantHost;
+          if (manager.activeHost !== activeHost) {
+              if (manager.redisClient) {
+                  manager.redisClient.hsetAsync(manager.redisKey, manager.redisField, activeHost)
                   .then(() => {
                       response.active = 'swapping';
-                      utils.redisClient.publish(utils.redisKey, activeHost);
+                      manager.redisClient.publish(manager.redisKey, activeHost);
                       logger.info(method, 'Active host swap in progress');
                       res.send(response);
                   })
@@ -58,8 +58,8 @@ module.exports = function(logger, utils) {
                   });
               }
               else {
-                  response.active = utils.host === activeHost;
-                  utils.activeHost = activeHost;
+                  response.active = manager.host === activeHost;
+                  manager.activeHost = activeHost;
                   var message = 'The active state has changed';
                   logger.info(method, message, 'to', activeHost);
                   response.message = message;

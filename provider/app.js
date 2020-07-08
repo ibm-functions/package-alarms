@@ -27,7 +27,7 @@ var bodyParser = require('body-parser');
 var bluebird = require('bluebird');
 var logger = require('./Logger');
 
-var ProviderUtils = require('./lib/utils.js');
+var ProviderManager = require('./lib/manager.js');
 var ProviderHealth = require('./lib/health.js');
 var ProviderActivation = require('./lib/active.js');
 var constants = require('./lib/constants.js');
@@ -182,7 +182,7 @@ function createRedisClient() {
 function init(server) {
     var method = 'init';
     var nanoDb;
-    var providerUtils;
+    var providerManager;
 
     if (server !== null) {
         var address = server.address();
@@ -198,20 +198,20 @@ function init(server) {
         return createRedisClient();
     })
     .then(client => {
-        providerUtils = new ProviderUtils(logger, nanoDb, client);
-        return providerUtils.initRedis();
+        providerManager = new ProviderManager(logger, nanoDb, client);
+        return providerManager.initRedis();
     })
     .then(() => {
-        var providerHealth = new ProviderHealth(logger, providerUtils);
-        var providerActivation = new ProviderActivation(logger, providerUtils);
+        var providerHealth = new ProviderHealth(logger, providerManager);
+        var providerActivation = new ProviderActivation(logger, providerManager);
 
         // Health Endpoint
-        app.get(providerHealth.endPoint, providerUtils.authorize, providerHealth.health);
+        app.get(providerHealth.endPoint, providerManager.authorize, providerHealth.health);
 
         // Activation Endpoint
-        app.get(providerActivation.endPoint, providerUtils.authorize, providerActivation.active);
+        app.get(providerActivation.endPoint, providerManager.authorize, providerActivation.active);
 
-        providerUtils.initAllTriggers();
+        providerManager.initAllTriggers();
 
         if (monitoringAuth) {
             setInterval(function () {
