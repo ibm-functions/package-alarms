@@ -10,13 +10,13 @@ script:
 - "./tools/travis/build.sh"
 deploy:
 - provider: script
-  script: "./tools/travis/publish.sh ibmfunctions $TRAVIS_TAG"
+  script: "./tools/travis/publish.sh ibmfunctions alarms-provider $TRAVIS_TAG"
   on:
     tags: true
     all_branches: true
     repo: ibm-functions/package-alarms
 - provider: script
-  script: "./tools/travis/publish.sh ibmfunctions latest"
+  script: "./tools/travis/publish.sh ibmfunctions alarms-provider nightly"
   on:
     branch: master
     repo: ibm-functions/package-alarms
