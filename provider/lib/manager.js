@@ -128,7 +128,11 @@ module.exports = function(logger, triggerDB, redisClient) {
                             triggerData.triggersLeft++;
                         }
 
-                        if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
+                        //temporary workaround for IAM SPI issue involving 403s
+                        if (statusCode && statusCode === HttpStatus.FORBIDDEN && triggerData.additionalData) {
+                            reject(`Received a 403 status code from IAM SPI: ${triggerIdentifier}`);
+                        }
+                        else if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
