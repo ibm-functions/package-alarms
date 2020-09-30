@@ -1,4 +1,4 @@
-FROM node:10.20.1
+FROM node:10.22.1
 
 RUN apt-get update && apt-get upgrade -y
 
