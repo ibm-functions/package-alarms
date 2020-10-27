@@ -62,6 +62,9 @@ module.exports = function(logger, manager) {
     this.monitor = function(apikey) {
         var method = 'monitor';
 
+        var auth = apikey.split(':');
+        var userAuth = auth[0]
+
         if (triggerName) {
             monitorStatus = Object.assign({}, manager.monitorStatus);
             manager.monitorStatus = {};
@@ -72,7 +75,7 @@ module.exports = function(logger, manager) {
                 var stageFailed = monitorStages[monitorStatusSize - 2];
                 monitorStatus[stageFailed] = 'failed';
             }
-            var existingID = `${apikey}/_/${triggerName}`;
+            var existingID = `${userAuth}/_/${triggerName}`;
 
             //delete trigger feed from database
             manager.sanitizer.deleteTriggerFromDB(existingID, 0);
@@ -104,11 +107,11 @@ module.exports = function(logger, manager) {
         manager.monitorStatus.triggerType = alarmType;
 
         var triggerURL = manager.uriHost + '/api/v1/namespaces/_/triggers/' + triggerName;
-        var triggerID = `${apikey}/_/${triggerName}`;
+        var triggerID = `${userAuth}/_/${triggerName}`;
         createTrigger(triggerURL, apikey)
         .then((info) => {
             logger.info(method, triggerID, info);
-            var newTrigger = createAlarmTrigger(triggerID, apikey, alarmType);
+            var newTrigger = createAlarmTrigger(apikey, alarmType);
             createTriggerInDB(triggerID, newTrigger);
         })
         .catch(err => {
@@ -116,7 +119,7 @@ module.exports = function(logger, manager) {
         });
     };
 
-    function createAlarmTrigger(triggerID, apikey, alarmType) {
+    function createAlarmTrigger(apikey, alarmType) {
         var method = 'createAlarmTrigger';
 
         var newTrigger = {
