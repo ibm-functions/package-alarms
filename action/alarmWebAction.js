@@ -33,11 +33,12 @@ function main(params) {
         namespace: triggerParts.namespace,
         additionalData: common.constructObject(params.additionalData),
     };
-
+    var auth = params.authKey.split(':');
+    var userAuth = auth[0]
     var isCFNameSpace = false;
     var triggerID = `${triggerData.namespace}/${triggerData.name}`;
     if (triggerData.apikey && (!triggerData.additionalData || !triggerData.additionalData.iamApikey)) {
-        triggerID = `${triggerData.apikey}/${triggerID}`;
+        triggerID = `${userAuth}/${triggerID}`;
         isCFNameSpace = true;
     }
 
