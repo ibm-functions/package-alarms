@@ -99,7 +99,7 @@ class AlarmsMultiWorkersTests extends FlatSpec
                     val worker1Doc = documents
                             .fields("rows")
                             .convertTo[List[JsObject]]
-                            .filter(_.fields("id").convertTo[String].equals(s"$user:$password/_/$worker11Trigger"))
+                            .filter(_.fields("id").convertTo[String].equals(s"$user/_/$worker11Trigger"))
 
                     JsHelpers.getFieldPath(worker1Doc.head, "doc", "worker") shouldBe Some(JsString("worker11"))
                 })
