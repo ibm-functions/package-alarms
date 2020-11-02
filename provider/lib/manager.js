@@ -100,6 +100,7 @@ module.exports = function(logger, triggerDB, redisClient) {
 
     function postTrigger(triggerData, retryCount, throttleCount) {
         var method = 'postTrigger';
+        var isIAMNamespace = triggerData.additionalData && triggerData.additionalData.iamApikey;
 
         return new Promise(function(resolve, reject) {
 
@@ -128,7 +129,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                             triggerData.triggersLeft++;
                         }
 
-                        if (statusCode && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && triggerData.additionalData) {
+                        if (statusCode && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && isIAMNamespace) {
                             reject(`Received a ${statusCode} status code from IAM SPI: ${triggerData.id}`);
                         }
                         else if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
