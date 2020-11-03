@@ -233,10 +233,6 @@ function main(params) {
                 return db.getTrigger(triggerID, isCFNameSpace);
             })
             .then(trigger => {
-                if (trigger.status && trigger.status.reason && trigger.status.reason.kind === 'ADMIN') {
-                    return reject(common.sendError(400, `${params.triggerName} cannot be updated because it was disabled by an admin.  Please contact support for further assistance`));
-                }
-
                 if (params.trigger_payload) {
                     updatedParams.payload = common.constructObject(params.trigger_payload, true);
                 }
