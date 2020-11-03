@@ -115,12 +115,22 @@ module.exports = function(logger, triggerDB, redisClient) {
                 json: triggerData.payload
             }, function(error, response) {
                 try {
-                    var statusCode = !error ? response.statusCode : error.statusCode;
+                    var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
                     var triggerIdentifier = triggerData.triggerID;
                     logger.info(method, triggerIdentifier, 'http post request, STATUS:', statusCode);
 
-                    if (error || statusCode >= 400) {
+                    //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
+                    if (error && error.statusCode === 400) {
+                        var message;
+                        try {
+                            message = error.error.errorMessage;
+                        } catch (e) {
+                            message = `Received an error when generating IAM token: ${error}`;
+                        }
+                        reject(message);
+                    }
+                    else if (error || statusCode >= 400) {
                         logger.error(method, 'there was an error invoking', triggerIdentifier, statusCode || error);
                         var throttleCounter = throttleCount || 0;
 
@@ -128,7 +138,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                         if (triggerData.maxTriggers && triggerData.maxTriggers !== -1) {
                             triggerData.triggersLeft++;
                         }
-
+                        // do not disable for 401s or 403s for IAM namespaces for now due to issue with the controller (PEP)
                         if (statusCode && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && isIAMNamespace) {
                             reject(`Received a ${statusCode} status code from IAM SPI: ${triggerData.id}`);
                         }
@@ -137,14 +147,9 @@ module.exports = function(logger, triggerDB, redisClient) {
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
                         else if (statusCode && shouldDisableTrigger(statusCode, headers)) {
-                            var message;
-                            try {
-                                message = error.error.errorMessage;
-                            } catch (e) {
-                                message = `Received a ${statusCode} status code when firing the trigger`;
-                            }
-                            disableTrigger(triggerIdentifier, statusCode, `Trigger automatically disabled: ${message}`);
-                            reject(`Disabled trigger ${triggerIdentifier}: ${message}`);
+                            var errMsg = `Received a ${statusCode} status code when firing the trigger`;
+                            disableTrigger(triggerIdentifier, statusCode, `Trigger automatically disabled: ${errMsg}`);
+                            reject(`Disabled trigger ${triggerIdentifier}: ${errMsg}`);
                         }
                         else {
                             if (retryCount < retryAttempts) {
