@@ -140,7 +140,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                         }
                         // do not disable for 401s or 403s for IAM namespaces for now due to issue with the controller (PEP)
                         if (statusCode && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && isIAMNamespace) {
-                            reject(`Received a ${statusCode} status code from IAM SPI: ${triggerData.id}`);
+                            reject(`Received a ${statusCode} status code from IAM SPI: ${triggerIdentifier}`);
                         }
                         else if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
