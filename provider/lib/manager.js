@@ -138,15 +138,11 @@ module.exports = function(logger, triggerDB, redisClient) {
                         if (triggerData.maxTriggers && triggerData.maxTriggers !== -1) {
                             triggerData.triggersLeft++;
                         }
-                        // do not disable for 401s or 403s for IAM namespaces for now due to issue with the controller (PEP)
-                        if (statusCode && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && isIAMNamespace) {
-                            reject(`Received a ${statusCode} status code from IAM SPI: ${triggerIdentifier}`);
-                        }
                         else if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
-                        else if (statusCode && shouldDisableTrigger(statusCode, headers)) {
+                        else if (statusCode && shouldDisableTrigger(statusCode, headers, false, isIAMNamespace)) {
                             var errMsg = `Received a ${statusCode} status code when firing the trigger`;
                             disableTrigger(triggerIdentifier, statusCode, `Trigger automatically disabled: ${errMsg}`);
                             reject(`Disabled trigger ${triggerIdentifier}: ${errMsg}`);
@@ -187,7 +183,13 @@ module.exports = function(logger, triggerDB, redisClient) {
         });
     }
 
-    function shouldDisableTrigger(statusCode, headers) {
+    function shouldDisableTrigger(statusCode, headers, isStartup, isIAMNamespace) {
+        //temporary workaround for IAM issues
+        // do not disable for 401s or 403s for IAM namespaces on trigger fire
+        if (!isStartup && (statusCode === HttpStatus.FORBIDDEN || statusCode === HttpStatus.UNAUTHORIZED) && isIAMNamespace) {
+            return false;
+        }
+
         return statusCode === HttpStatus.BAD_REQUEST || ((statusCode > 400 && statusCode < 500) && hasTransactionIdHeader(headers) &&
             [HttpStatus.REQUEST_TIMEOUT, HttpStatus.TOO_MANY_REQUESTS, HttpStatus.CONFLICT].indexOf(statusCode) === -1);
     }
@@ -329,8 +331,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                             method: 'get',
                             url: uri
                         }, function (error, response) {
-                            //disable trigger in database if trigger is dead
-                            if (!error && shouldDisableTrigger(response.statusCode, response.headers)) {
+                            if (!error && shouldDisableTrigger(response.statusCode, response.headers, true)) {
                                 var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
                                 disableTrigger(triggerIdentifier, response.statusCode, message);
                                 logger.error(method, 'trigger', triggerIdentifier, 'has been disabled due to status code:', response.statusCode);
