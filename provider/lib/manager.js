@@ -86,7 +86,7 @@ module.exports = function(logger, triggerDB, redisClient) {
 
         var triggerIdentifier = triggerData.triggerID;
 
-        logger.info(method, 'Alarm fired for', triggerIdentifier, 'attempting to fire trigger');
+        logger.info(method, 'Alarm triggered for', triggerIdentifier);
         postTrigger(triggerData, 0)
         .then(triggerId => {
             logger.info(method, 'Trigger', triggerId, 'was successfully fired');
@@ -118,27 +118,26 @@ module.exports = function(logger, triggerDB, redisClient) {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
                     var triggerIdentifier = triggerData.triggerID;
-                    logger.info(method, triggerIdentifier, 'http post request, STATUS:', statusCode);
 
                     //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
                     if (error && error.statusCode === 400) {
                         var message;
                         try {
-                            message = error.error.errorMessage;
+                            message = `${error.error.errorMessage} for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
                         } catch (e) {
-                            message = `Received an error when generating IAM token: ${error}`;
+                            message = `Received an error generating IAM token for ${triggerIdentifier}`;
                         }
                         reject(message);
                     }
                     else if (error || statusCode >= 400) {
-                        logger.error(method, 'there was an error invoking', triggerIdentifier, statusCode || error);
+                        logger.error(method, 'Received an error invoking', triggerIdentifier, statusCode || error);
                         var throttleCounter = throttleCount || 0;
 
                         // only manage trigger fires if they are not infinite
                         if (triggerData.maxTriggers && triggerData.maxTriggers !== -1) {
                             triggerData.triggersLeft++;
                         }
-                        else if (statusCode && statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
+                        else if (statusCode === HttpStatus.NOT_FOUND && hasTransactionIdHeader(headers)) {
                             self.sanitizer.deleteTriggerFeed(triggerIdentifier);
                             reject(`Deleted trigger feed ${triggerIdentifier}: Received a 404 when firing the trigger`);
                         }
@@ -150,7 +149,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                         else {
                             if (retryCount < retryAttempts) {
                                 throttleCounter = statusCode === HttpStatus.TOO_MANY_REQUESTS ? throttleCounter + 1 : throttleCounter;
-                                logger.info(method, 'attempting to fire trigger again', triggerIdentifier, 'Retry Count:', (retryCount + 1));
+                                logger.info(method, 'Attempting to fire trigger again', triggerIdentifier, 'Retry Count:', (retryCount + 1));
                                 setTimeout(function () {
                                     postTrigger(triggerData, (retryCount + 1), throttleCounter)
                                     .then(triggerId => {
@@ -172,7 +171,7 @@ module.exports = function(logger, triggerDB, redisClient) {
                             }
                         }
                     } else {
-                        logger.info(method, 'fired', triggerIdentifier);
+                        logger.info(method, 'Fire', triggerIdentifier, 'request,', 'Status Code:', statusCode);
                         resolve(triggerIdentifier);
                     }
                 }
@@ -536,14 +535,12 @@ module.exports = function(logger, triggerDB, redisClient) {
     }
 
     this.authRequest = function(triggerData, options, cb) {
-        var method = 'authRequest';
 
         authHandler.handleAuth(triggerData, options)
         .then(requestOptions => {
             request(requestOptions, cb);
         })
         .catch(err => {
-            logger.error(method, err);
             cb(err);
         });
     };
