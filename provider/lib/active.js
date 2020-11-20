@@ -15,64 +15,61 @@
  * limitations under the License.
  */
 
-module.exports = function(logger, manager) {
+module.exports = function (logger, manager) {
 
-  // Active Endpoint
-  this.endPoint = '/active';
+    // Active Endpoint
+    this.endPoint = '/active';
 
-  var hostMachine = process.env.HOST_MACHINE;
+    var hostMachine = process.env.HOST_MACHINE;
 
-  this.active = function(req, res) {
-      var method = 'active';
+    this.active = function (req, res) {
+        var method = 'active';
 
-      var response = {
-          worker: manager.worker,
-          host: manager.host,
-          hostMachine: hostMachine,
-          active: manager.host === manager.activeHost
-      };
+        var response = {
+            worker: manager.worker,
+            host: manager.host,
+            hostMachine: hostMachine,
+            active: manager.host === manager.activeHost
+        };
 
-      if (req.query && req.query.active) {
-          var query = req.query.active.toLowerCase();
+        if (req.query && req.query.active) {
+            var query = req.query.active.toLowerCase();
 
-          if (query !== 'true' && query !== 'false') {
-              response.error = "Invalid query string";
-              res.send(response);
-              return;
-          }
+            if (query !== 'true' && query !== 'false') {
+                response.error = "Invalid query string";
+                res.send(response);
+                return;
+            }
 
-          var redundantHost = manager.host === `${manager.hostPrefix}0` ? `${manager.hostPrefix}1` : `${manager.hostPrefix}0`;
-          var activeHost = query === 'true' ? manager.host : redundantHost;
-          if (manager.activeHost !== activeHost) {
-              if (manager.redisClient) {
-                  manager.redisClient.hsetAsync(manager.redisKey, manager.redisField, activeHost)
-                  .then(() => {
-                      response.active = 'swapping';
-                      manager.redisClient.publish(manager.redisKey, activeHost);
-                      logger.info(method, 'Active host swap in progress');
-                      res.send(response);
-                  })
-                  .catch(err => {
-                      response.error = err;
-                      res.send(response);
-                  });
-              }
-              else {
-                  response.active = manager.host === activeHost;
-                  manager.activeHost = activeHost;
-                  var message = 'The active state has changed';
-                  logger.info(method, message, 'to', activeHost);
-                  response.message = message;
-                  res.send(response);
-              }
-          }
-          else {
-              res.send(response);
-          }
-      }
-      else {
-          res.send(response);
-      }
-  };
+            var redundantHost = manager.host === `${manager.hostPrefix}0` ? `${manager.hostPrefix}1` : `${manager.hostPrefix}0`;
+            var activeHost = query === 'true' ? manager.host : redundantHost;
+            if (manager.activeHost !== activeHost) {
+                if (manager.redisClient) {
+                    manager.redisClient.hsetAsync(manager.redisKey, manager.redisField, activeHost)
+                    .then(() => {
+                        response.active = 'swapping';
+                        manager.redisClient.publish(manager.redisKey, activeHost);
+                        logger.info(method, 'Active host swap in progress');
+                        res.send(response);
+                    })
+                    .catch(err => {
+                        response.error = err;
+                        res.send(response);
+                    });
+                } else {
+                    response.active = manager.host === activeHost;
+                    manager.activeHost = activeHost;
+                    var message = 'The active state has changed';
+                    logger.info(method, message, 'to', activeHost);
+                    response.message = message;
+                    res.send(response);
+                }
+            } else {
+                res.send(response);
+            }
+        } else {
+            res.send(response);
+        }
+    };
 
 };

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-module.exports = function(logger, manager) {
+module.exports = function (logger, manager) {
 
     var self = this;
 
-    this.deleteTriggerFromDB = function(triggerID, retryCount) {
+    this.deleteTriggerFromDB = function (triggerID, retryCount) {
         var method = 'deleteTriggerFromDB';
 
         //delete from database
@@ -31,36 +31,32 @@ module.exports = function(logger, manager) {
                             setTimeout(function () {
                                 self.deleteTriggerFromDB(triggerID, (retryCount + 1));
                             }, 1000);
-                        }
-                        else {
+                        } else {
                             logger.error(method, triggerID, 'there was an error deleting the trigger from the database');
                         }
-                    }
-                    else {
+                    } else {
                         logger.info(method, triggerID, 'trigger was successfully deleted from the database');
                     }
                 });
-            }
-            else {
+            } else {
                 logger.error(method, triggerID, 'could not find the trigger in the database');
             }
         });
     };
 
-    this.deleteTriggerAndRules = function(triggerData) {
+    this.deleteTriggerAndRules = function (triggerData) {
         var method = 'deleteTriggerAndRules';
 
         var triggerIdentifier = triggerData.triggerID;
         manager.authRequest(triggerData, {
             method: 'get',
             uri: triggerData.uri
-        }, function(error, response, body) {
+        }, function (error, response, body) {
             logger.info(method, triggerIdentifier, 'http get request, STATUS:', response ? response.statusCode : undefined);
 
             if (error || response.statusCode >= 400) {
                 logger.error(method, triggerIdentifier, 'trigger get request failed');
-            }
-            else {
+            } else {
                 //delete the trigger
                 self.deleteTrigger(triggerData, 0)
                 .then((info) => {
@@ -73,8 +69,7 @@ module.exports = function(logger, manager) {
                                 var uri = manager.uriHost + '/api/v1/namespaces/' + qualifiedName[0] + '/rules/' + qualifiedName[1];
                                 self.deleteRule(triggerData, rule, uri, 0);
                             }
-                        }
-                        catch (err) {
+                        } catch (err) {
                             logger.error(method, triggerIdentifier, err);
                         }
                     }
@@ -86,10 +81,10 @@ module.exports = function(logger, manager) {
         });
     };
 
-    this.deleteTrigger = function(triggerData, retryCount) {
+    this.deleteTrigger = function (triggerData, retryCount) {
         var method = 'deleteTrigger';
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
 
             var triggerIdentifier = triggerData.triggerID;
             manager.authRequest(triggerData, {
@@ -112,21 +107,20 @@ module.exports = function(logger, manager) {
                     } else {
                         reject('trigger delete request failed');
                     }
-                }
-                else {
+                } else {
                     resolve('trigger delete request was successful');
                 }
             });
         });
     };
 
-    this.deleteRule = function(triggerData, rule, uri, retryCount) {
+    this.deleteRule = function (triggerData, rule, uri, retryCount) {
         var method = 'deleteRule';
 
         manager.authRequest(triggerData, {
             method: 'delete',
             uri: uri
-        }, function(error, response) {
+        }, function (error, response) {
             logger.info(method, rule, 'http delete rule request, STATUS:', response ? response.statusCode : undefined);
             if (error || response.statusCode >= 400) {
                 if (!error && response.statusCode === 409 && retryCount < 5) {
@@ -137,37 +131,33 @@ module.exports = function(logger, manager) {
                 } else {
                     logger.error(method, rule, 'rule delete request failed');
                 }
-            }
-            else {
+            } else {
                 logger.info(method, rule, 'rule delete request was successful');
             }
         });
     };
 
-    this.deleteTriggerFeed = function(triggerID) {
+    this.deleteTriggerFeed = function (triggerID) {
         var method = 'deleteTriggerFeed';
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             manager.db.get(triggerID, function (err, existing) {
                 if (!err) {
                     var updatedTrigger = existing;
-                    var status = {
+                    updatedTrigger.status = {
                         'active': false,
                         'dateChanged': Date.now(),
                         'reason': {'kind': 'AUTO', 'statusCode': undefined, 'message': `Marked for deletion`}
                     };
-                    updatedTrigger.status = status;
 
                     manager.db.insert(updatedTrigger, triggerID, function (err) {
                         if (err) {
                             reject(err);
-                        }
-                        else {
+                        } else {
                             resolve(triggerID);
                         }
                     });
-                }
-                else {
+                } else {
                     reject(err);
                 }
             });

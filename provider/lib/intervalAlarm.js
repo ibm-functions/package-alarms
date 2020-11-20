@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-var lt =  require('long-timeout');
+var lt = require('long-timeout');
 
-module.exports = function(logger, newTrigger) {
+module.exports = function (logger, newTrigger) {
 
 
     var cachedTrigger = {
@@ -32,11 +32,11 @@ module.exports = function(logger, newTrigger) {
         additionalData: newTrigger.additionalData
     };
 
-    this.scheduleAlarm = function(triggerIdentifier, callback) {
+    this.scheduleAlarm = function (triggerIdentifier, callback) {
         var method = 'scheduleIntervalAlarm';
 
         try {
-            return new Promise(function(resolve, reject) {
+            return new Promise(function (resolve, reject) {
 
                 var intervalInMilliSeconds = newTrigger.minutes * 1000 * 60;
                 var startDate = new Date(newTrigger.startDate).getTime();
@@ -52,17 +52,15 @@ module.exports = function(logger, newTrigger) {
                 if (startDate > Date.now()) {
                     //fire the trigger and start the interval on the start date
                     logger.info(method, triggerIdentifier, 'waiting for start date', startDate);
-                    lt.setTimeout(function() {
+                    lt.setTimeout(function () {
                         logger.info(method, triggerIdentifier, 'firing first trigger and starting interval upon reaching start date', startDate);
-                        var intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
-                        cachedTrigger.intervalHandle = intervalHandle;
+                        cachedTrigger.intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
                         resolve(cachedTrigger);
                     }, startDate - Date.now());
-                }
-                else {
+                } else {
                     //fire the trigger and start the interval at the next scheduled interval
                     //as long as the next scheduled interval is not past the stop date
-                    var intervalsFired = Math.floor((Date.now() - startDate)/intervalInMilliSeconds);
+                    var intervalsFired = Math.floor((Date.now() - startDate) / intervalInMilliSeconds);
                     var nextScheduledInterval = startDate + (intervalInMilliSeconds * (intervalsFired + 1));
 
                     if (newTrigger.stopDate && nextScheduledInterval > new Date(newTrigger.stopDate).getTime()) {
@@ -70,10 +68,9 @@ module.exports = function(logger, newTrigger) {
                     }
 
                     logger.info(method, triggerIdentifier, 'waiting for next interval');
-                    lt.setTimeout(function() {
+                    lt.setTimeout(function () {
                         logger.info(method, triggerIdentifier, 'firing trigger and starting interval for trigger past its start date');
-                        var intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
-                        cachedTrigger.intervalHandle = intervalHandle;
+                        cachedTrigger.intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
                         resolve(cachedTrigger);
                     }, nextScheduledInterval - Date.now());
                 }

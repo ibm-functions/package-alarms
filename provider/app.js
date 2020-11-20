@@ -35,7 +35,7 @@ var constants = require('./lib/constants.js');
 // Initialize the Express Application
 var app = express();
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({extended: false}));
 app.set('port', process.env.PORT || 8080);
 
 // Allow invoking servers with self-signed certificates.
@@ -57,7 +57,7 @@ var viewDDName = '_design/' + constants.VIEWS_DESIGN_DOC;
 
 // Create the Provider Server
 var server = http.createServer(app);
-server.listen(app.get('port'), function() {
+server.listen(app.get('port'), function () {
     logger.info('server.listen', 'Express server listening on port ' + app.get('port'));
 });
 
@@ -69,11 +69,10 @@ function createDatabase() {
 
     if (nano !== null) {
         return new Promise(function (resolve, reject) {
-            nano.db.create(databaseName, function (err, body) {
+            nano.db.create(databaseName, function (err) {
                 if (!err) {
                     logger.info(method, 'created trigger database:', databaseName);
-                }
-                else if (err.statusCode !== 412) {
+                } else if (err.statusCode !== 412) {
                     logger.info(method, 'failed to create trigger database:', databaseName, err);
                 }
 
@@ -112,8 +111,7 @@ function createDatabase() {
 
             });
         });
-    }
-    else {
+    } else {
         Promise.reject('nano provider did not get created.  check db URL: ' + dbHost);
     }
 }
@@ -121,22 +119,20 @@ function createDatabase() {
 function createDesignDoc(db, ddName, designDoc) {
     var method = 'createDesignDoc';
 
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
 
-        db.get(ddName, function (error, body) {
+        db.get(ddName, function (error) {
             if (error) {
                 //new design doc
-                db.insert(designDoc, ddName, function (error, body) {
+                db.insert(designDoc, ddName, function (error) {
                     if (error && error.statusCode !== 409) {
                         logger.error(method, error);
                         reject('design doc could not be created: ' + error);
-                    }
-                    else {
+                    } else {
                         resolve(db);
                     }
                 });
-            }
-            else {
+            } else {
                 resolve(db);
             }
         });
@@ -146,7 +142,7 @@ function createDesignDoc(db, ddName, designDoc) {
 function createRedisClient() {
     var method = 'createRedisClient';
 
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         if (redisUrl) {
             var client;
             var redis = require('redis');
@@ -154,7 +150,7 @@ function createRedisClient() {
             if (redisUrl.startsWith('rediss://')) {
                 // If this is a rediss: connection, we have some other steps.
                 client = redis.createClient(redisUrl, {
-                    tls: { servername: new URL(redisUrl).hostname }
+                    tls: {servername: new URL(redisUrl).hostname}
                 });
                 // This will, with node-redis 2.8, emit an error:
                 // "node_redis: WARNING: You passed "rediss" as protocol instead of the "redis" protocol!"
@@ -171,8 +167,7 @@ function createRedisClient() {
                 logger.error(method, 'Error connecting to redis', err);
                 reject(err);
             });
-        }
-        else {
+        } else {
             resolve();
         }
     });
