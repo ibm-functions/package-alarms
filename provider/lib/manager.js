@@ -161,7 +161,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                         try {
                             message = `${error.error.errorMessage} for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
                         } catch (e) {
-                            message = `Received an error generating IAM token for ${triggerIdentifier}: ${e}`;
+                            message = `Received an error generating IAM token for ${triggerIdentifier}: ${error}`;
                         }
                         reject(message);
                     } else if (error || statusCode >= 400) {
