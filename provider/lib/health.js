@@ -19,7 +19,7 @@ var si = require('systeminformation');
 var v8 = require('v8');
 var _ = require('lodash');
 
-module.exports = function(logger, manager) {
+module.exports = function (logger, manager) {
 
     // Health Endpoint
     this.endPoint = '/health';
@@ -59,7 +59,7 @@ module.exports = function(logger, manager) {
         });
     };
 
-    this.monitor = function(apikey) {
+    this.monitor = function (apikey) {
         var method = 'monitor';
 
         var auth = apikey.split(':');
@@ -120,7 +120,6 @@ module.exports = function(logger, manager) {
     };
 
     function createAlarmTrigger(apikey, alarmType) {
-        var method = 'createAlarmTrigger';
 
         var newTrigger = {
             apikey: apikey,
@@ -138,11 +137,9 @@ module.exports = function(logger, manager) {
             newTrigger.minutes = 1;
             newTrigger.startDate = startDate;
             newTrigger.stopDate = startDate + minuteInterval;
-        }
-        else if (alarmType === 'date') {
+        } else if (alarmType === 'date') {
             newTrigger.date = startDate;
-        }
-        else {
+        } else {
             newTrigger.cron = '* * * * *';
             newTrigger.stopDate = startDate + minuteInterval;
         }
@@ -151,9 +148,8 @@ module.exports = function(logger, manager) {
     }
 
     function createTrigger(triggerURL, apikey) {
-        var method = 'createTrigger';
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             manager.authRequest({apikey: apikey}, {
                 method: 'put',
                 uri: triggerURL,
@@ -162,22 +158,20 @@ module.exports = function(logger, manager) {
             }, function (error, response) {
                 if (error || response.statusCode >= 400) {
                     reject('monitoring trigger create request failed');
-                }
-                else {
+                } else {
                     resolve('monitoring trigger create request was successful');
                 }
             });
         });
     }
 
-    function createTriggerInDB (triggerID, newTrigger) {
+    function createTriggerInDB(triggerID, newTrigger) {
         var method = 'createTriggerInDB';
 
         manager.db.insert(newTrigger, triggerID, function (err) {
             if (!err) {
                 logger.info(method, triggerID, 'successfully inserted monitoring trigger');
-            }
-            else {
+            } else {
                 logger.error(method, triggerID, err);
             }
         });

@@ -18,18 +18,21 @@
 const common = require('./common');
 
 // constructor for DB object - a thin, promise-loving wrapper around nano
-module.exports = function(dbURL, dbName) {
+module.exports = function (dbURL, dbName) {
     var nano = require('nano')(dbURL);
     this.db = nano.db.use(dbName);
     var utilsDB = this;
 
-    this.getWorkerID = function(availabeWorkers) {
+    this.getWorkerID = function (availabeWorkers) {
 
         return new Promise((resolve, reject) => {
             var workerID = availabeWorkers[0] || 'worker0';
 
             if (availabeWorkers.length > 1) {
-                utilsDB.db.view('triggerViews', 'triggers_by_worker', {reduce: true, group: true}, function (err, body) {
+                utilsDB.db.view('triggerViews', 'triggers_by_worker', {
+                    reduce: true,
+                    group: true
+                }, function (err, body) {
                     if (!err) {
                         var triggersByWorker = {};
 
@@ -54,22 +57,20 @@ module.exports = function(dbURL, dbName) {
                         reject(err);
                     }
                 });
-            }
-            else {
+            } else {
                 resolve(workerID);
             }
         });
     };
 
-    this.createTrigger = function(triggerID, newTrigger) {
+    this.createTrigger = function (triggerID, newTrigger) {
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
 
             utilsDB.db.insert(newTrigger, triggerID, function (err) {
                 if (!err) {
                     resolve();
-                }
-                else {
+                } else {
                     const errorMsg = 'error creating alarm trigger.';
                     if (err.statusCode === 409) {
                         //trigger already exists so update it
@@ -79,8 +80,7 @@ module.exports = function(dbURL, dbName) {
                         .then(trigger => utilsDB.updateTrigger(triggerID, newTrigger, {_rev: trigger._rev}, 0))
                         .then(() => resolve())
                         .catch(err => reject(common.sendError(err.statusCode, errorMsg, err.message)));
-                    }
-                    else {
+                    } else {
                         reject(common.sendError(err.statusCode, errorMsg, err.message));
                     }
                 }
@@ -88,9 +88,9 @@ module.exports = function(dbURL, dbName) {
         });
     };
 
-    this.getTrigger = function(triggerID, retry = false) {
+    this.getTrigger = function (triggerID, retry = false) {
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             utilsDB.db.get(triggerID, function (err, existing) {
                 if (err) {
                     var triggerSegments = triggerID.split('/');
@@ -109,23 +109,25 @@ module.exports = function(dbURL, dbName) {
         });
     };
 
-    this.getTriggerByName = function(triggerName) {
+    this.getTriggerByName = function (triggerName) {
 
-        return new Promise(function(resolve, reject) {
-            utilsDB.db.view('triggerViews', 'all_triggers', {include_docs: true, key: triggerName}, function(err, body) {
+        return new Promise(function (resolve, reject) {
+            utilsDB.db.view('triggerViews', 'all_triggers', {
+                include_docs: true,
+                key: triggerName
+            }, function (err, body) {
                 if (!err) {
                     body.rows.forEach(function (trigger) {
                         resolve(trigger.doc);
                     });
-                }
-                else {
+                } else {
                     reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
                 }
             });
         });
     };
 
-    this.disableTrigger = function(triggerID, trigger, retryCount, crudMessage) {
+    this.disableTrigger = function (triggerID, trigger, retryCount, crudMessage) {
 
         if (retryCount === 0) {
             //check if it is already disabled
@@ -142,7 +144,7 @@ module.exports = function(dbURL, dbName) {
             trigger.status = status;
         }
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
 
             utilsDB.db.insert(trigger, triggerID, function (err) {
                 if (err) {
@@ -152,12 +154,10 @@ module.exports = function(dbURL, dbName) {
                             .then(id => resolve(id))
                             .catch(err => reject(err));
                         }, 1000);
-                    }
-                    else {
+                    } else {
                         reject(common.sendError(err.statusCode, 'there was an error while disabling the trigger in the database.', err.message));
                     }
-                }
-                else {
+                } else {
                     resolve(triggerID);
                 }
             });
@@ -165,9 +165,9 @@ module.exports = function(dbURL, dbName) {
 
     };
 
-    this.deleteTrigger = function(triggerID, retryCount) {
+    this.deleteTrigger = function (triggerID, retryCount) {
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
 
             utilsDB.db.get(triggerID, function (err, existing) {
                 if (!err) {
@@ -179,17 +179,14 @@ module.exports = function(dbURL, dbName) {
                                     .then(resolve)
                                     .catch(err => reject(err));
                                 }, 1000);
-                            }
-                            else {
+                            } else {
                                 reject(common.sendError(err.statusCode, 'there was an error while deleting the trigger from the database.', err.message));
                             }
-                        }
-                        else {
+                        } else {
                             resolve();
                         }
                     });
-                }
-                else {
+                } else {
                     var triggerSegments = triggerID.split('/');
                     var triggerName = triggerSegments.length > 2 ? `/${triggerSegments[1]}/${triggerSegments[2]}` : `/${triggerID}`;
                     reject(common.sendError(err.statusCode, 'could not find trigger ' + triggerName + ' in the database'));
@@ -198,7 +195,7 @@ module.exports = function(dbURL, dbName) {
         });
     };
 
-    this.updateTrigger = function(triggerID, trigger, params, retryCount) {
+    this.updateTrigger = function (triggerID, trigger, params, retryCount) {
 
         if (retryCount === 0) {
             for (var key in params) {
@@ -211,7 +208,7 @@ module.exports = function(dbURL, dbName) {
             trigger.status = status;
         }
 
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             utilsDB.db.insert(trigger, triggerID, function (err) {
                 if (err) {
                     if (err.statusCode === 409 && retryCount < 5) {
@@ -220,12 +217,10 @@ module.exports = function(dbURL, dbName) {
                             .then(id => resolve(id))
                             .catch(err => reject(err));
                         }, 1000);
-                    }
-                    else {
+                    } else {
                         reject(common.sendError(err.statusCode, 'there was an error while updating the trigger in the database.', err.message));
                     }
-                }
-                else {
+                } else {
                     resolve(triggerID);
                 }
             });

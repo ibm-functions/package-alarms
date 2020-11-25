@@ -17,7 +17,7 @@
 
 var CronJob = require('cron').CronJob;
 
-module.exports = function(logger, newTrigger) {
+module.exports = function (logger, newTrigger) {
 
     var cachedTrigger = {
         apikey: newTrigger.apikey,
@@ -32,11 +32,11 @@ module.exports = function(logger, newTrigger) {
         additionalData: newTrigger.additionalData
     };
 
-    this.scheduleAlarm = function(triggerIdentifier, callback) {
+    this.scheduleAlarm = function (triggerIdentifier, callback) {
         var method = 'scheduleDateAlarm';
 
         try {
-            return new Promise(function(resolve, reject) {
+            return new Promise(function (resolve, reject) {
 
                 var cron = new Date(newTrigger.date);
                 if (cron.getTime() > Date.now()) {
@@ -47,8 +47,7 @@ module.exports = function(logger, newTrigger) {
 
                     cachedTrigger.cronHandle = cronHandle;
                     resolve(cachedTrigger);
-                }
-                else {
+                } else {
                     return reject('the fire once date has expired');
                 }
             });

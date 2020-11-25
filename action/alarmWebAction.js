@@ -28,7 +28,6 @@ function main(params) {
 
     var triggerParts = common.parseQName(params.triggerName);
     var triggerData = {
-        apikey: params.authKey,
         name: triggerParts.name,
         namespace: triggerParts.namespace,
         additionalData: common.constructObject(params.additionalData),
@@ -36,10 +35,11 @@ function main(params) {
 
     var isCFNameSpace = false;
     var triggerID = `${triggerData.namespace}/${triggerData.name}`;
-    if (triggerData.apikey && (!triggerData.additionalData || !triggerData.additionalData.iamApikey)) {
+    if (!triggerData.additionalData || !triggerData.additionalData.iamApikey) {
         var auth = params.authKey.split(':');
         triggerID = `${auth[0]}/${triggerID}`;
         isCFNameSpace = true;
+        triggerData.apikey = params.authKey;
     }
 
     var workers = params.workers instanceof Array ? params.workers : [];
@@ -78,8 +78,7 @@ function main(params) {
                 }
                 newTrigger.deleteAfterFire = deleteAfterFire;
             }
-        }
-        else {
+        } else {
             var cronHandle;
 
             if (params.isInterval) {
@@ -95,21 +94,21 @@ function main(params) {
                     return common.sendError(400, 'the minutes parameter must be an integer greater than zero');
                 }
                 newTrigger.minutes = minutesParam;
-            }
-            else {
+            } else {
                 if (!params.cron) {
                     return common.sendError(400, 'alarms trigger feed is missing the cron parameter');
                 }
 
                 try {
-                    cronHandle = new CronJob(params.cron, function() {}, undefined, false, params.timezone);
+                    cronHandle = new CronJob(params.cron, function () {
+                    }, undefined, false, params.timezone);
                     //validate cron granularity if 5 fields are allowed instead of 6
                     if (params.limitCronFields && hasSecondsGranularity(params.cron)) {
                         return common.sendError(400, 'cron pattern is limited to 5 fields with 1 minute as the finest granularity');
                     }
                     newTrigger.cron = params.cron;
                     newTrigger.timezone = params.timezone;
-                } catch(ex) {
+                } catch (ex) {
                     var message = ex.message !== 'Invalid timezone.' ? `cron pattern '${params.cron}' is not valid` : ex.message;
                     return common.sendError(400, message);
                 }
@@ -121,8 +120,7 @@ function main(params) {
                     return common.sendError(400, startDate);
                 }
                 newTrigger.startDate = startDate;
-            }
-            else if (params.isInterval) {
+            } else if (params.isInterval) {
                 //if startDate was not given we will start it 30 seconds
                 //from now since startDate must be in the future
                 newTrigger.startDate = Date.now() + (1000 * 30);
@@ -131,12 +129,10 @@ function main(params) {
             if (params.maxTriggers && params.stopDate) {
                 if (params.isInterval) {
                     return common.sendError(400, 'maxTriggers is not supported for the interval trigger feed');
-                }
-                else {
+                } else {
                     return common.sendError(400, 'maxTriggers is not allowed when the stopDate parameter is specified');
                 }
-            }
-            else if (params.stopDate) {
+            } else if (params.stopDate) {
                 var stopDate = validateDate(params.stopDate, 'stopDate', newTrigger.startDate);
                 if (stopDate !== params.stopDate) {
                     return common.sendError(400, stopDate);
@@ -160,6 +156,13 @@ function main(params) {
                 console.log('trigger will be assigned to worker ' + worker);
                 newTrigger.worker = worker;
                 Object.assign(newTrigger, triggerData);
+                if (params.encryptedAuth) {
+                    if (!newTrigger.additionalData || !newTrigger.additionalData.iamApikey) {
+                        newTrigger.apikey = params.encryptedAuth;
+                    } else {
+                        newTrigger.additionalData.iamApikey = params.encryptedAuth;
+                    }
+                }
                 return db.createTrigger(triggerID, newTrigger);
             })
             .then(() => {
@@ -174,8 +177,7 @@ function main(params) {
             });
         });
 
-    }
-    else if (params.__ow_method === "get") {
+    } else if (params.__ow_method === "get") {
         return new Promise(function (resolve, reject) {
             common.verifyTriggerAuth(triggerData, false)
             .then(() => {
@@ -199,14 +201,12 @@ function main(params) {
                 if (doc.date) {
                     body.config.date = doc.date;
                     body.config.deleteAfterFire = doc.deleteAfterFire;
-                }
-                else {
+                } else {
                     body.config.startDate = doc.startDate;
                     body.config.stopDate = doc.stopDate;
                     if (doc.minutes) {
                         body.config.minutes = doc.minutes;
-                    }
-                    else {
+                    } else {
                         body.config.cron = doc.cron;
                         body.config.timezone = doc.timezone;
                     }
@@ -221,8 +221,7 @@ function main(params) {
                 reject(err);
             });
         });
-    }
-    else if (params.__ow_method === "put") {
+    } else if (params.__ow_method === "put") {
 
         return new Promise(function (resolve, reject) {
             var updatedParams = {};
@@ -253,8 +252,7 @@ function main(params) {
                         }
                         updatedParams.deleteAfterFire = deleteAfterFire;
                     }
-                }
-                else {
+                } else {
                     if (trigger.minutes) {
                         if (params.minutes) {
                             if (+params.minutes !== parseInt(params.minutes)) {
@@ -267,8 +265,7 @@ function main(params) {
                             }
                             updatedParams.minutes = minutesParam;
                         }
-                    }
-                    else {
+                    } else {
                         if (params.cron || params.timezone) {
                             var cron = params.cron || trigger.cron;
                             var timezone = params.timezone || trigger.timezone;
@@ -305,8 +302,7 @@ function main(params) {
                             return reject(common.sendError(400, stopDate));
                         }
                         updatedParams.stopDate = stopDate;
-                    }
-                    else if (params.startDate && trigger.stopDate) {
+                    } else if (params.startDate && trigger.stopDate) {
                         //need to verify that new start date is before existing stop date
                         if (new Date(params.startDate).getTime() >= new Date(trigger.stopDate).getTime()) {
                             return reject(common.sendError(400, `startDate parameter '${params.startDate}' must be less than the stopDate parameter '${trigger.stopDate}'`));
@@ -337,8 +333,7 @@ function main(params) {
                 reject(err);
             });
         });
-    }
-    else if (params.__ow_method === "delete") {
+    } else if (params.__ow_method === "delete") {
 
         return new Promise(function (resolve, reject) {
             common.verifyTriggerAuth(triggerData, true)
@@ -363,8 +358,7 @@ function main(params) {
                 reject(err);
             });
         });
-    }
-    else {
+    } else {
         return common.sendError(400, 'unsupported lifecycleEvent');
     }
 }
@@ -375,14 +369,11 @@ function validateDate(date, paramName, startDate) {
 
     if (isNaN(dateObject.getTime())) {
         return `${paramName} parameter '${date}' is not a valid Date`;
-    }
-    else if (Date.now() >= dateObject.getTime()) {
+    } else if (Date.now() >= dateObject.getTime()) {
         return `${paramName} parameter '${date}' must be in the future`;
-    }
-    else if (startDate && dateObject <= new Date(startDate).getTime()) {
+    } else if (startDate && dateObject <= new Date(startDate).getTime()) {
         return `${paramName} parameter '${date}' must be greater than the startDate parameter '${startDate}'`;
-    }
-    else {
+    } else {
         return date;
     }
 

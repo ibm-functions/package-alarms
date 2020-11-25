@@ -6,8 +6,7 @@ function getOpenWhiskConfig(triggerData) {
             iamUrl: triggerData.additionalData.iamUrl
         });
         return {ignore_certs: true, namespace: triggerData.namespace, auth_handler: tm};
-    }
-    else {
+    } else {
         return {ignore_certs: true, namespace: triggerData.namespace, api_key: triggerData.apikey};
     }
 }
