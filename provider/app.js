@@ -52,8 +52,6 @@ var databaseName = dbPrefix + constants.TRIGGER_DB_SUFFIX;
 var redisUrl = process.env.REDIS_URL;
 var monitoringAuth = process.env.MONITORING_AUTH;
 var monitoringInterval = process.env.MONITORING_INTERVAL;
-var filterDDName = '_design/' + constants.FILTERS_DESIGN_DOC;
-var viewDDName = '_design/' + constants.VIEWS_DESIGN_DOC;
 
 // Create the Provider Server
 var server = http.createServer(app);
@@ -61,82 +59,26 @@ server.listen(app.get('port'), function () {
     logger.info('server.listen', 'Express server listening on port ' + app.get('port'));
 });
 
-function createDatabase() {
-    var method = 'createDatabase';
-    logger.info(method, 'creating the trigger database');
+function verifyDatabase() {
+    var method = 'verifyDatabase';
+    logger.info(method, 'verifying alarms database exists');
 
     var nano = require('nano')(dbProtocol + '://' + dbUsername + ':' + dbPassword + '@' + dbHost);
 
     if (nano !== null) {
         return new Promise(function (resolve, reject) {
-            nano.db.create(databaseName, function (err) {
+            nano.db.get(databaseName, function (err) {
                 if (!err) {
-                    logger.info(method, 'created trigger database:', databaseName);
-                } else if (err.statusCode !== 412) {
-                    logger.info(method, 'failed to create trigger database:', databaseName, err);
-                }
-
-                var viewDD = {
-                    views: {
-                        triggers_by_worker: {
-                            map: function (doc) {
-                                if (doc.maxTriggers && (!doc.status || doc.status.active === true)) {
-                                    emit(doc.worker || 'worker0', 1);
-                                }
-                            }.toString(),
-                            reduce: '_count'
-                        }
-                    }
-                };
-
-                createDesignDoc(nano.db.use(databaseName), viewDDName, viewDD)
-                .then((db) => {
-                    var filterDD = {
-                        filters: {
-                            triggers_by_worker:
-                                function (doc, req) {
-                                    return doc.maxTriggers && ((!doc.worker && req.query.worker === 'worker0') ||
-                                            (doc.worker === req.query.worker));
-                                }.toString()
-                        }
-                    };
-                    return createDesignDoc(db, filterDDName, filterDD);
-                })
-                .then((db) => {
-                    resolve(db);
-                })
-                .catch(err => {
+                    resolve(nano.db.use(databaseName));
+                } else {
+                    logger.error(method, 'failed to find trigger database:', databaseName, err);
                     reject(err);
-                });
-
+                }
             });
         });
     } else {
         Promise.reject('nano provider did not get created.  check db URL: ' + dbHost);
     }
-}
-
-function createDesignDoc(db, ddName, designDoc) {
-    var method = 'createDesignDoc';
-
-    return new Promise(function (resolve, reject) {
-
-        db.get(ddName, function (error) {
-            if (error) {
-                //new design doc
-                db.insert(designDoc, ddName, function (error) {
-                    if (error && error.statusCode !== 409) {
-                        logger.error(method, error);
-                        reject('design doc could not be created: ' + error);
-                    } else {
-                        resolve(db);
-                    }
-                });
-            } else {
-                resolve(db);
-            }
-        });
-    });
 }
 
 function createRedisClient() {
@@ -187,7 +129,7 @@ function init(server) {
         }
     }
 
-    createDatabase()
+    verifyDatabase()
     .then(db => {
         nanoDb = db;
         return createRedisClient();
@@ -215,7 +157,8 @@ function init(server) {
         }
     })
     .catch(err => {
-        logger.error(method, 'an error occurred creating database:', err);
+        logger.error(method, 'The following connection error occurred:', err);
+        process.exit(1);
     });
 
 }
