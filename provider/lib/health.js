@@ -111,7 +111,7 @@ module.exports = function (logger, manager) {
         createTrigger(triggerURL, apikey)
         .then((info) => {
             logger.info(method, triggerID, info);
-            var newTrigger = createAlarmTrigger(apikey, alarmType);
+            var newTrigger = createAlarmTrigger(alarmType);
             createTriggerInDB(triggerID, newTrigger);
         })
         .catch(err => {
@@ -119,10 +119,9 @@ module.exports = function (logger, manager) {
         });
     };
 
-    function createAlarmTrigger(apikey, alarmType) {
+    function createAlarmTrigger(alarmType) {
 
         var newTrigger = {
-            apikey: apikey,
             name: triggerName,
             namespace: '_',
             payload: {},
