@@ -43,6 +43,7 @@ module.exports = function (logger, triggerDB, redisClient) {
     this.redisField = constants.REDIS_FIELD;
     this.uriHost = 'https://' + this.routerHost;
     this.sanitizer = new Sanitizer(logger, this);
+    this.monitoringAuth = process.env.MONITORING_AUTH;
     this.monitorStatus = {};
 
     function createTrigger(triggerIdentifier, newTrigger) {
@@ -61,6 +62,9 @@ module.exports = function (logger, triggerDB, redisClient) {
 
         newTrigger.uri = self.uriHost + '/api/v1/namespaces/' + newTrigger.namespace + '/triggers/' + newTrigger.name;
         newTrigger.triggerID = triggerIdentifier;
+        if (newTrigger.monitor) {
+            newTrigger.apikey = self.monitoringAuth;
+        }
 
         var alarm;
         if (newTrigger.date) {
