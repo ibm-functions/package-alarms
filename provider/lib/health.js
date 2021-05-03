@@ -40,7 +40,7 @@ module.exports = function (logger, manager) {
         // Write log info if the health enpoint is called when no monitoring status 
         // is available. (Maybe the self-test has not already executed after a restart) 
         if ( !monitorStatus ) {
-            logger.info(method, triggerNamePrefix, 'No MonitorStatus available.(Potentially restarted  alarm backendprovider in the last hour)');
+            logger.info(method, triggerNamePrefix, 'No MonitorStatus available.(Potentionally the alarm backendprovider was restarted in the last hour)');
         }
 
         // get all system stats in parallel
