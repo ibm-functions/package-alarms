@@ -25,6 +25,7 @@ module.exports = function (logger, manager) {
     this.endPoint = '/health';
 
     var triggerName;
+    var triggerNamePrefix = 'alarms_' + manager.worker + manager.host + '_';
     var monitorStatus;
     var alarmTypes = ['interval', 'date', 'cron'];
     var alarmTypeIndex = 0;
@@ -32,8 +33,15 @@ module.exports = function (logger, manager) {
 
     // Health Logic
     this.health = function (req, res) {
+        var method = 'health';
 
         var stats = {triggerCount: Object.keys(manager.triggers).length};
+        
+        // Write log info if the health enpoint is called when no monitoring status 
+        // is available. (Maybe the self-test has not already executed after a restart) 
+        if ( !monitorStatus ) {
+            logger.info(method, triggerNamePrefix, 'No MonitorStatus available. (Potentially the alarm backendprovider was restarted in the last hour)');
+        }
 
         // get all system stats in parallel
         Promise.all([
