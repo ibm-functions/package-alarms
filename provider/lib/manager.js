@@ -45,6 +45,7 @@ module.exports = function (logger, triggerDB, redisClient) {
     this.sanitizer = new Sanitizer(logger, this);
     this.monitoringAuth = process.env.MONITORING_AUTH;
     this.monitorStatus = {};
+    this.retrying = {};
 
     function createTrigger(triggerIdentifier, newTrigger) {
         var method = 'createTrigger';
@@ -142,6 +143,12 @@ module.exports = function (logger, triggerDB, redisClient) {
         var method = 'postTrigger';
         var isIAMNamespace = triggerData.additionalData && triggerData.additionalData.iamApikey;
 
+        if (retryCount > 0 && self.retrying[triggerData.triggerID] === false) {
+            // this is a retry of a previously failed trigger which was
+            // successfully triggered in the meantime, thus we should abort.
+            return Promise.reject(`Aborting retry ${retryCount} for trigger post, has been fired successfully`);
+        }
+
         return new Promise(function (resolve, reject) {
 
             // only manage trigger fires if they are not infinite
@@ -183,9 +190,15 @@ module.exports = function (logger, triggerDB, redisClient) {
                             disableTrigger(triggerIdentifier, statusCode, `Trigger automatically disabled: ${errMsg}`);
                             reject(`Disabled trigger ${triggerIdentifier}: ${errMsg}`);
                         } else {
-                            if (retryCount < constants.RETRY_ATTEMPTS) {
+                            // only start a retry loop once (when self.retrying is unset).
+                            // retryCount > 0 means this already is a retry so we can continue
+                            if (retryCount < constants.RETRY_ATTEMPTS && (self.retrying[triggerIdentifier] === false || retryCount > 0)) {
+                                if (retryCount == 0) {
+                                    self.retrying[triggerIdentifier] = true;
+                                }
                                 throttleCounter = statusCode === HttpStatus.TOO_MANY_REQUESTS ? throttleCounter + 1 : throttleCounter;
-                                logger.info(method, 'Attempting to fire trigger again', triggerIdentifier, 'Retry Count:', (retryCount + 1));
+                                const retryDelay = Math.max(constants.RETRY_DELAY, 1000 * Math.pow(throttleCounter, 2));
+                                logger.info(method, 'Attempting to fire trigger again in ', retryDelay, 'ms', triggerIdentifier, 'retry count:', (retryCount + 1));
                                 setTimeout(function () {
                                     postTrigger(triggerData, (retryCount + 1), throttleCounter)
                                     .then(triggerId => {
@@ -194,18 +207,22 @@ module.exports = function (logger, triggerDB, redisClient) {
                                     .catch(err => {
                                         reject(err);
                                     });
-                                }, Math.max(constants.RETRY_DELAY, 1000 * Math.pow(throttleCounter, 2)));
+                                }, retryDelay);
                             } else {
                                 if (throttleCounter === constants.RETRY_ATTEMPTS) {
                                     var msg = 'Automatically disabled after continuously receiving a 429 status code when firing the trigger';
                                     disableTrigger(triggerIdentifier, 429, msg);
                                     reject('Disabled trigger ' + triggerIdentifier + ' due to status code: 429');
+                                } else if (retryCount === 0 && self.retrying[triggerIdentifier] === true) {
+                                    reject('Unable to reach server to fire trigger ' + triggerIdentifier + ', another retry currently in progress');
                                 } else {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier);
+                                    self.retrying[triggerIdentifier] = false;
                                 }
                             }
                         }
                     } else {
+                        self.retrying[triggerIdentifier] = false;
                         logger.info(method, 'Fire', triggerIdentifier, 'request,', 'Status Code:', statusCode);
                         resolve(triggerIdentifier);
                     }
