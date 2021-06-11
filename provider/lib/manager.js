@@ -142,8 +142,9 @@ module.exports = function (logger, triggerDB, redisClient) {
     function postTrigger(triggerData, retryCount, throttleCount) {
         var method = 'postTrigger';
         var isIAMNamespace = triggerData.additionalData && triggerData.additionalData.iamApikey;
+        var triggerIdentifier = triggerData.triggerID;
 
-        if (retryCount > 0 && self.retrying[triggerData.triggerID] === false) {
+        if (retryCount > 0 && !self.retrying[triggerIdentifier]) {
             // this is a retry of a previously failed trigger which was
             // successfully triggered in the meantime, thus we should abort.
             return Promise.reject(`Aborting retry ${retryCount} for trigger post, has been fired successfully`);
@@ -164,7 +165,6 @@ module.exports = function (logger, triggerDB, redisClient) {
                 try {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
-                    var triggerIdentifier = triggerData.triggerID;
 
                     //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
                     if (error && error.statusCode === 400) {
@@ -192,8 +192,8 @@ module.exports = function (logger, triggerDB, redisClient) {
                         } else {
                             // only start a retry loop once (when self.retrying is unset).
                             // retryCount > 0 means this already is a retry so we can continue
-                            if (retryCount < constants.RETRY_ATTEMPTS && (self.retrying[triggerIdentifier] === false || retryCount > 0)) {
-                                if (retryCount == 0) {
+                            if (retryCount < constants.RETRY_ATTEMPTS && (!self.retrying[triggerIdentifier] || retryCount > 0)) {
+                                if (retryCount === 0) {
                                     self.retrying[triggerIdentifier] = true;
                                 }
                                 throttleCounter = statusCode === HttpStatus.TOO_MANY_REQUESTS ? throttleCounter + 1 : throttleCounter;
@@ -213,7 +213,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                                     var msg = 'Automatically disabled after continuously receiving a 429 status code when firing the trigger';
                                     disableTrigger(triggerIdentifier, 429, msg);
                                     reject('Disabled trigger ' + triggerIdentifier + ' due to status code: 429');
-                                } else if (retryCount === 0 && self.retrying[triggerIdentifier] === true) {
+                                } else if (retryCount === 0 && self.retrying[triggerIdentifier]) {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier + ', another retry currently in progress');
                                 } else {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier);
