@@ -1,4 +1,4 @@
-FROM node:12.22.1
+FROM node:12
 
 RUN apt-get update && apt-get upgrade -y
 
