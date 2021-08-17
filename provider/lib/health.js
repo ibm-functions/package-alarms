@@ -37,6 +37,13 @@ module.exports = function (logger, manager) {
 
         var stats = {triggerCount: Object.keys(manager.triggers).length};
         
+        // Write log info if the health enpoint is called when invalid monitoring status 
+        // is available. 
+        if (stats.triggerCount < 5) {
+            logger.info(method, triggerNamePrefix, 'Probably invalid MonitorStatus available.( ' + monitorStatus + ')' );
+        }
+ 
+        
         // Write log info if the health enpoint is called when no monitoring status 
         // is available. (Maybe the self-test has not already executed after a restart) 
         if ( !monitorStatus ) {
@@ -96,10 +103,10 @@ module.exports = function (logger, manager) {
             };
             manager.sanitizer.deleteTrigger(triggerData, 0)
             .then((info) => {
-                logger.info(method, existingID, info);
+                logger.info(method,"Deleting trigger in openwhisk : ",  existingID, info);
             })
             .catch(err => {
-                logger.error(method, existingID, err);
+                logger.error(method, "Failed to delete trigger in openwhisk, ", existingID, err);
             });
 
             var existingAlarmIndex = alarmTypes.indexOf(monitorStatus.triggerType);
@@ -118,12 +125,12 @@ module.exports = function (logger, manager) {
         var triggerID = `${userAuth}/_/${triggerName}`;
         createTrigger(triggerURL, apikey)
         .then((info) => {
-            logger.info(method, triggerID, info);
+            logger.info(method, "Create OpenWhiskTrigger: ", triggerID, info);
             var newTrigger = createAlarmTrigger(alarmType);
             createTriggerInDB(triggerID, newTrigger);
         })
         .catch(err => {
-            logger.error(method, triggerID, err);
+            logger.error(method, "Failed to create an OpenWhiskTrigger: ", triggerID, err);
         });
     };
 
@@ -162,9 +169,15 @@ module.exports = function (logger, manager) {
                 uri: triggerURL,
                 json: true,
                 body: {}
-            }, function (error, response) {
+            }, function (error, response , source ) {
                 if (error || response.statusCode >= 400) {
-                    reject('monitoring trigger create request failed');
+                	var reject_msg = "monitoring trigger create request failed in call to ";
+                	if ( error && source == "auth_handling") { 
+                        reject_msg += "authHandler, " +(response ? response.statusCode : error )  ; 
+                	}else{
+                		reject_msg += "openWhisk, " +(response ? response.statusCode : error ) ; 
+                	}  
+                	reject(reject_msg); 
                 } else {
                     resolve('monitoring trigger create request was successful');
                 }

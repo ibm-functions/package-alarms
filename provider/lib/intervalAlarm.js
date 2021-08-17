@@ -77,7 +77,7 @@ module.exports = function (logger, newTrigger) {
 
             });
         } catch (err) {
-            return Promise.reject(err);
+            return Promise.reject("Error in intervalAlarm :" + err);
         }
     };
 

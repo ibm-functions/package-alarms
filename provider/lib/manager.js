@@ -101,7 +101,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                     });
                 }
             } else {
-                logger.info(method, 'could not find', triggerIdentifier, 'in database');
+                logger.info(method, 'could not find', triggerIdentifier, 'in database, '+ err);
                 //make sure it is already stopped
                 stopTrigger(triggerIdentifier);
             }
@@ -134,7 +134,7 @@ module.exports = function (logger, triggerDB, redisClient) {
             handleFiredTrigger(triggerData);
         })
         .catch(err => {
-            logger.error(method, err);
+            logger.error(method,"failed posting a trigger, " + err);
             handleFiredTrigger(triggerData);
         });
     }
@@ -161,16 +161,20 @@ module.exports = function (logger, triggerDB, redisClient) {
                 method: 'post',
                 uri: triggerData.uri,
                 json: triggerData.payload
-            }, function (error, response) {
+            }, function (error, response, source ) {
                 try {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
-
+                    
+                    if (error && source == "auth_handling") {
+                    	logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
+                    }
+                    
                     //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
-                    if (error && error.statusCode === 400) {
+                    if (source == "auth_handling" && error && error.statusCode === 400) {
                         var message;
                         try {
-                            message = `${error.error.errorMessage} for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
+                            message = `${error.error.errorMessage} in generating IAM token for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
                         } catch (e) {
                             message = `Received an error generating IAM token for ${triggerIdentifier}: ${error}`;
                         }
@@ -227,6 +231,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                         resolve(triggerIdentifier);
                     }
                 } catch (err) {
+                	self.retrying[triggerIdentifier] = false;
                     reject('Exception occurred while firing trigger ' + err);
                 }
             });
@@ -288,7 +293,12 @@ module.exports = function (logger, triggerDB, redisClient) {
                         self.authRequest(doc, {
                             method: 'get',
                             url: uri
-                        }, function (error, response) {
+                        }, function (error, response, source ) {
+                        	
+                        	if (error && source == "auth_handling") {
+                              logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
+                            }
+                        	
                             if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
                                 var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
                                 disableTrigger(triggerIdentifier, response.statusCode, message);
@@ -375,12 +385,12 @@ module.exports = function (logger, triggerDB, redisClient) {
             });
 
             feed.on('error', function (err) {
-                logger.error(method, err);
+                logger.error(method, "Error while receiving DB changes from customer cloudant DB , " + err);
             });
 
             feed.follow();
         } catch (err) {
-            logger.error(method, err);
+            logger.error(method, "Error while setting up change listener on customer cloudant DB , " +err);
         }
     }
 
@@ -458,7 +468,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                                 self.redisClient.publish(self.redisKey, redundantHost);
                             })
                             .catch(err => {
-                                logger.error(method, err);
+                                logger.error(method, "Failed to switch to partner alarm provider while handling SIGTERM, " +err);
                             });
                         }
                     });
@@ -493,7 +503,12 @@ module.exports = function (logger, triggerDB, redisClient) {
             request(requestOptions, cb);
         })
         .catch(err => {
-            cb(err);
+        	//********************************************************************
+        	//* added the "source" identifier to enable the callback functions
+        	//* to detect if the error happen in handleAuth (IAM or key) or in 
+        	//* the http call to openwhisk 
+        	//********************************************************************
+            cb(err, undefined, "auth_handling");
         });
     };
 

@@ -54,6 +54,13 @@ module.exports = function (logger, manager) {
         }, function (error, response, body) {
             logger.info(method, triggerIdentifier, 'http get request, STATUS:', response ? response.statusCode : undefined);
 
+            //***************************************************************
+            //* in case of error, the body parm contains the source info 
+            //**************************************************************
+            if ( error && body == "auth_handling") {
+                logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
+            }
+
             if (error || response.statusCode >= 400) {
                 logger.error(method, triggerIdentifier, 'trigger get request failed');
             } else {
@@ -90,8 +97,13 @@ module.exports = function (logger, manager) {
             manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
-            }, function (error, response) {
-                logger.info(method, triggerIdentifier, 'http delete request, STATUS:', response ? response.statusCode : undefined);
+            }, function (error, response, source ) {
+            
+                if ( error && source == "auth_handling") {
+                    logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
+                }
+                
+                logger.info(method, triggerIdentifier, 'http delete request, STATUS:', response ? response.statusCode : undefined );
                 if (error || response.statusCode >= 400) {
                     if (!error && response.statusCode === 409 && retryCount < 5) {
                         logger.info(method, 'attempting to delete trigger again', triggerIdentifier, 'Retry Count:', (retryCount + 1));
@@ -120,7 +132,10 @@ module.exports = function (logger, manager) {
         manager.authRequest(triggerData, {
             method: 'delete',
             uri: uri
-        }, function (error, response) {
+        }, function (error, response, source ) {
+            if ( error && source == "auth_handling") {
+               logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
+            }
             logger.info(method, rule, 'http delete rule request, STATUS:', response ? response.statusCode : undefined);
             if (error || response.statusCode >= 400) {
                 if (!error && response.statusCode === 409 && retryCount < 5) {
