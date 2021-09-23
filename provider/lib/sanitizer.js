@@ -32,14 +32,14 @@ module.exports = function (logger, manager) {
                                 self.deleteTriggerFromDB(triggerID, (retryCount + 1));
                             }, 1000);
                         } else {
-                            logger.error(method, triggerID, 'there was an error deleting the trigger from the database');
+                            logger.error(method, triggerID, 'there was an error deleting the trigger from the database :', err);
                         }
                     } else {
                         logger.info(method, triggerID, 'trigger was successfully deleted from the database');
                     }
                 });
             } else {
-                logger.error(method, triggerID, 'could not find the trigger in the database');
+                logger.error(method, triggerID, 'could not find the trigger in the database :', err);
             }
         });
     };
@@ -61,8 +61,10 @@ module.exports = function (logger, manager) {
                 logger.error(method, 'Error in handleAuth() request for trigger ', triggerIdentifier, " error: ", error);
             }
 
-            if (error || response.statusCode >= 400) {
-                logger.error(method, triggerIdentifier, 'trigger get request failed');
+            if (error ) {
+                logger.error(method, triggerIdentifier, 'trigger get request failed' , error);
+            else if ( response.statusCode >= 400) {
+                logger.error(method, triggerIdentifier, 'trigger get request failed , with status Code:' , response.statusCode);
             } else {
                 //delete the trigger
                 self.deleteTrigger(triggerData, 0)
@@ -77,12 +79,12 @@ module.exports = function (logger, manager) {
                                 self.deleteRule(triggerData, rule, uri, 0);
                             }
                         } catch (err) {
-                            logger.error(method, triggerIdentifier, err);
+                            logger.error(method, triggerIdentifier, ' while delete Rule :', err);
                         }
                     }
                 })
                 .catch(err => {
-                    logger.error(method, triggerIdentifier, err);
+                    logger.error(method, triggerIdentifier,' while delete trigger :', err);
                 });
             }
         });

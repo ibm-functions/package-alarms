@@ -37,10 +37,11 @@ module.exports = function (logger, manager) {
 
         var stats = {triggerCount: Object.keys(manager.triggers).length};
         
-        // Write log info if the health enpoint is called when invalid monitoring status 
+        // Write log info if the health endpoint is called when invalid monitoring status 
         // is available. 
-        if (stats.triggerCount < 5) {
-            logger.info(method, triggerNamePrefix, 'Probably invalid MonitorStatus available.( ' + monitorStatus + ')' );
+        var monitorStatusSize = Object.keys(monitorStatus).length;
+        if (monitorStatusSize < 5) {
+            logger.info(method, triggerNamePrefix, 'Probably invalid MonitorStatus available.( ' +JSON.stringify( monitorStatus ) + ')' );
         }
  
         
