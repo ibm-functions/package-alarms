@@ -63,7 +63,7 @@ module.exports = function (logger, manager) {
 
             if (error ) {
                 logger.error(method, triggerIdentifier, 'trigger get request failed' , error);
-            else if ( response.statusCode >= 400) {
+            } else if ( response.statusCode >= 400) {
                 logger.error(method, triggerIdentifier, 'trigger get request failed , with status Code:' , response.statusCode);
             } else {
                 //delete the trigger
