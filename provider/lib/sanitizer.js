@@ -115,7 +115,7 @@ module.exports = function (logger, manager) {
                                 resolve(info);
                             })
                             .catch(err => {
-                                reject(err);
+                                reject( 'retry of deleteTrigger ', triggerIdentifier,  ' failed with ', err);
                             });
                         }, 1000);
                     } else {
@@ -169,13 +169,13 @@ module.exports = function (logger, manager) {
 
                     manager.db.insert(updatedTrigger, triggerID, function (err) {
                         if (err) {
-                            reject(err);
+                            reject('in subcall updateTrigger', err);
                         } else {
                             resolve(triggerID);
                         }
                     });
                 } else {
-                    reject(err);
+                    reject( 'in subcall getTrigger',err);
                 }
             });
         })
