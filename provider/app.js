@@ -160,7 +160,7 @@ function init(server) {
         if (monitoringAuth) {
             setTimeout(function () {
                 providerHealth.monitor(monitoringAuth);
-            }, 2000 );
+            }, 120000 );
         }
         
         //***********************************************************************
