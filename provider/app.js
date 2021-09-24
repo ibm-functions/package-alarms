@@ -165,7 +165,7 @@ function init(server) {
         
         //***********************************************************************
         //* start the interval for the self-test monitoring  ( ideal interval 
-        //* every 5 min ) 
+        //* every 5 min) 
         //************************************************************************
         if (monitoringAuth) {
             setInterval(function () {
