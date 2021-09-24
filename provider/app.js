@@ -150,11 +150,29 @@ function init(server) {
 
         providerManager.initAllTriggers();
 
+        //*****************************************************************
+        //* Trigger a single self-test (monitor) run  immediately after 
+        //* starting the provider to ensure that monitoringService calls to 
+        //* the health endpoint will provide a result. 
+        //* - 2 min  delay to ensure that the providers asynchronous start handling 
+        //*   is completed 
+        //********************************************************************
+        if (monitoringAuth) {
+            setTimeout(function () {
+                providerHealth.monitor(monitoringAuth);
+            }, 2000 );
+        }
+        
+        //***********************************************************************
+        //* start the interval for the self-test monitoring  ( ideal interval 
+        //* every 5 min ) 
+        //************************************************************************
         if (monitoringAuth) {
             setInterval(function () {
                 providerHealth.monitor(monitoringAuth);
             }, monitoringInterval || constants.MONITOR_INTERVAL);
         }
+        
     })
     .catch(err => {
         logger.error(method, 'The following connection error occurred:', err);
