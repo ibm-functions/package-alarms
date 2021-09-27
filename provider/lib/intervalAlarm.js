@@ -51,9 +51,9 @@ module.exports = function (logger, newTrigger) {
 
                 if (startDate > Date.now()) {
                     //fire the trigger and start the interval on the start date
-                    logger.info(method, triggerIdentifier, 'waiting for start date', startDate);
+                    logger.info(method, triggerIdentifier, ': Waiting for start date', startDate);
                     lt.setTimeout(function () {
-                        logger.info(method, triggerIdentifier, 'firing first trigger and starting interval upon reaching start date', startDate);
+                        logger.info(method, triggerIdentifier, ': Firing first trigger and starting interval upon reaching start date', startDate);
                         cachedTrigger.intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
                         resolve(cachedTrigger);
                     }, startDate - Date.now());
@@ -67,9 +67,9 @@ module.exports = function (logger, newTrigger) {
                         return reject('the next scheduled trigger fire is after the stop date');
                     }
 
-                    logger.info(method, triggerIdentifier, 'waiting for next interval');
+                    logger.info(method, triggerIdentifier, ': Waiting for next interval');
                     lt.setTimeout(function () {
-                        logger.info(method, triggerIdentifier, 'firing trigger and starting interval for trigger past its start date');
+                        logger.info(method, triggerIdentifier, ': Firing trigger and starting interval for trigger past its start date');
                         cachedTrigger.intervalHandle = lt.setInterval(callback, intervalInMilliSeconds);
                         resolve(cachedTrigger);
                     }, nextScheduledInterval - Date.now());

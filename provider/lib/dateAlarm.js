@@ -40,9 +40,9 @@ module.exports = function (logger, newTrigger) {
 
                 var cron = new Date(newTrigger.date);
                 if (cron.getTime() > Date.now()) {
-                    logger.info(method, 'Creating a fire once alarms trigger', triggerIdentifier);
+                    logger.info(method,  triggerIdentifier, ': Creating a fire once alarms trigger');
                     var cronHandle = new CronJob(cron, callback);
-                    logger.info(method, triggerIdentifier, 'starting cron job');
+                    logger.info(method, triggerIdentifier, ': Starting cron job');
                     cronHandle.start();
 
                     cachedTrigger.cronHandle = cronHandle;

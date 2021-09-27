@@ -60,16 +60,16 @@ module.exports = function (logger, newTrigger) {
 
                 if (newTrigger.startDate && new Date(newTrigger.startDate).getTime() > Date.now()) {
                     var startDate = new Date(newTrigger.startDate).getTime();
-                    logger.info(method, triggerIdentifier, 'waiting for start date', startDate);
+                    logger.info(method, triggerIdentifier, ': Waiting for start date', startDate);
                     lt.setTimeout(function () {
-                        logger.info(method, triggerIdentifier, 'starting cron job upon reaching start date', startDate);
+                        logger.info(method, triggerIdentifier, ': Starting cron job upon reaching start date', startDate);
                         cronHandle.start();
 
                         cachedTrigger.cronHandle = cronHandle;
                         resolve(cachedTrigger);
                     }, startDate - Date.now());
                 } else {
-                    logger.info(method, triggerIdentifier, 'starting cron job');
+                    logger.info(method, triggerIdentifier, ':Starting cron job');
                     cronHandle.start();
 
                     cachedTrigger.cronHandle = cronHandle;
