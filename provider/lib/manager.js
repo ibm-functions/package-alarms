@@ -56,7 +56,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                 try {
                     fireTrigger(triggerHandle);
                 } catch (e) {
-                    logger.error(method, 'Exception occurred while firing trigger', triggerIdentifier, e);
+                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
                 }
             }
         };
@@ -94,14 +94,14 @@ module.exports = function (logger, triggerDB, redisClient) {
 
                     triggerDB.insert(updatedTrigger, triggerIdentifier, function (err) {
                         if (err) {
-                            logger.error(method, 'there was an error while disabling', triggerIdentifier, 'in database.', err);
+                            logger.error(method, triggerIdentifier, ': There was an error while disabling in database :', err);
                         } else {
-                            logger.info(method, 'trigger', triggerIdentifier, 'successfully disabled in database');
+                            logger.info(method, triggerIdentifier, ': Trigger successfully disabled in database');
                         }
                     });
                 }
             } else {
-                logger.info(method, 'could not find', triggerIdentifier, 'in database');
+                logger.info(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
                 //make sure it is already stopped
                 stopTrigger(triggerIdentifier);
             }
@@ -118,7 +118,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                 lt.clearInterval(self.triggers[triggerIdentifier].intervalHandle);
             }
             delete self.triggers[triggerIdentifier];
-            logger.info(method, 'trigger', triggerIdentifier, 'successfully deleted from memory');
+            logger.info(method, triggerIdentifier, ': Trigger successfully deleted from memory');
         }
     }
 
@@ -127,14 +127,14 @@ module.exports = function (logger, triggerDB, redisClient) {
 
         var triggerIdentifier = triggerData.triggerID;
 
-        logger.info(method, 'Alarm triggered for', triggerIdentifier);
+        logger.info(method, triggerIdentifier, ': Alarm trigger ready to fire' );
         postTrigger(triggerData, 0)
         .then(triggerId => {
-            logger.info(method, 'Trigger', triggerId, 'was successfully fired');
+            logger.info(method, triggerId,  ': Trigger was successfully fired');
             handleFiredTrigger(triggerData);
         })
         .catch(err => {
-            logger.error(method, err);
+            logger.error(method,  triggerIdentifier, ": Failed posting a trigger :" + err);
             handleFiredTrigger(triggerData);
         });
     }
@@ -161,22 +161,26 @@ module.exports = function (logger, triggerDB, redisClient) {
                 method: 'post',
                 uri: triggerData.uri,
                 json: triggerData.payload
-            }, function (error, response) {
+            }, function (error, response, source ) {
                 try {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
-
+                    
+                    if (error && source == "auth_handling") {
+                    	logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger : ', error);
+                    }
+                    
                     //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
-                    if (error && error.statusCode === 400) {
+                    if (source == "auth_handling" && error && error.statusCode === 400) {
                         var message;
                         try {
-                            message = `${error.error.errorMessage} for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
+                            message = `${error.error.errorMessage} in generating IAM token for ${triggerIdentifier}, requestId: ${error.error.context.requestId}`;
                         } catch (e) {
                             message = `Received an error generating IAM token for ${triggerIdentifier}: ${error}`;
                         }
                         reject(message);
                     } else if (error || statusCode >= 400) {
-                        logger.error(method, 'Received an error invoking', triggerIdentifier, statusCode || error);
+                        logger.error(method, triggerIdentifier, ': Received an error invoking :',  statusCode || error);
                         var throttleCounter = throttleCount || 0;
 
                         // only manage trigger fires if they are not infinite
@@ -198,7 +202,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                                 }
                                 throttleCounter = statusCode === HttpStatus.TOO_MANY_REQUESTS ? throttleCounter + 1 : throttleCounter;
                                 const retryDelay = Math.max(constants.RETRY_DELAY, 1000 * Math.pow(throttleCounter, 2));
-                                logger.info(method, 'Attempting to fire trigger again in ', retryDelay, 'ms', triggerIdentifier, 'retry count:', (retryCount + 1));
+                                logger.info(method,  triggerIdentifier, ': Attempt to fire trigger again in ', retryDelay, 'ms, retry count:', (retryCount + 1));
                                 setTimeout(function () {
                                     postTrigger(triggerData, (retryCount + 1), throttleCounter)
                                     .then(triggerId => {
@@ -223,11 +227,12 @@ module.exports = function (logger, triggerDB, redisClient) {
                         }
                     } else {
                         self.retrying[triggerIdentifier] = false;
-                        logger.info(method, 'Fire', triggerIdentifier, 'request,', 'Status Code:', statusCode);
+                        logger.info(method, triggerIdentifier, ': Fired trigger request,', 'Status Code:', statusCode);
                         resolve(triggerIdentifier);
                     }
                 } catch (err) {
-                    reject('Exception occurred while firing trigger ' + err);
+                	self.retrying[triggerIdentifier] = false;
+                    reject('Exception occurred while firing trigger : ' + err);
                 }
             });
         });
@@ -284,39 +289,44 @@ module.exports = function (logger, triggerDB, redisClient) {
                         var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
                         var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
 
-                        logger.info(method, 'Checking if trigger', triggerIdentifier, 'still exists');
+                        logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
                         self.authRequest(doc, {
                             method: 'get',
                             url: uri
-                        }, function (error, response) {
+                        }, function (error, response, source ) {
+                        	
+                        	if (error && source == "auth_handling") {
+                              logger.error(method,  triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
+                            }
+                        	
                             if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
                                 var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
                                 disableTrigger(triggerIdentifier, response.statusCode, message);
-                                logger.error(method, 'trigger', triggerIdentifier, 'has been disabled due to status code:', response.statusCode);
+                                logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
                             } else {
                                 createTrigger(triggerIdentifier, doc)
                                 .then(cachedTrigger => {
                                     self.triggers[triggerIdentifier] = cachedTrigger;
-                                    logger.info(method, triggerIdentifier, 'created successfully');
+                                    logger.info(method, triggerIdentifier, ': Created successfully');
                                     if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
                                         try {
                                             fireTrigger(cachedTrigger);
                                         } catch (e) {
-                                            logger.error(method, 'Exception occurred while firing trigger', triggerIdentifier, e);
+                                            logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
                                         }
                                     }
                                 })
                                 .catch(err => {
                                     var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
                                     disableTrigger(triggerIdentifier, undefined, message);
-                                    logger.error(method, 'Disabled trigger', triggerIdentifier, err);
+                                    logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
                                 });
                             }
                         });
                     }
                 });
             } else {
-                logger.error(method, 'could not get latest state from database', err);
+                logger.error(method, ': Could not get latest state from database :', err);
             }
         });
     };
@@ -336,7 +346,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                 var triggerIdentifier = change.id;
                 var doc = change.doc;
 
-                logger.info(method, 'got change for trigger', triggerIdentifier);
+                logger.info(method, triggerIdentifier, ': Got change for trigger');
 
                 if (self.triggers[triggerIdentifier]) {
                     if (doc.status && doc.status.active === false) {
@@ -351,7 +361,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                         createTrigger(triggerIdentifier, doc)
                         .then(cachedTrigger => {
                             self.triggers[triggerIdentifier] = cachedTrigger;
-                            logger.info(method, triggerIdentifier, 'created successfully');
+                            logger.info(method, triggerIdentifier, ': Created successfully');
 
                             if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
                                 self.monitorStatus.triggerStarted = "success";
@@ -361,26 +371,26 @@ module.exports = function (logger, triggerDB, redisClient) {
                                 try {
                                     fireTrigger(cachedTrigger);
                                 } catch (e) {
-                                    logger.error(method, 'Exception occurred while firing trigger', triggerIdentifier, e);
+                                    logger.error(method,triggerIdentifier, ': Exception occurred while firing trigger :',  e);
                                 }
                             }
                         })
                         .catch(err => {
                             var message = 'Automatically disabled after receiving error on trigger creation: ' + err;
                             disableTrigger(triggerIdentifier, undefined, message);
-                            logger.error(method, 'Disabled trigger', triggerIdentifier, err);
+                            logger.error(method,  triggerIdentifier,': Disabled trigger fail :', err);
                         });
                     }
                 }
             });
 
             feed.on('error', function (err) {
-                logger.error(method, err);
+                logger.error(method, ": Error while receiving DB changes from trigger configuration DB :" + err);
             });
 
             feed.follow();
         } catch (err) {
-            logger.error(method, err);
+            logger.error(method, ": Error while setting up change listener on provider configuration DB : " + err);
         }
     }
 
@@ -411,7 +421,7 @@ module.exports = function (logger, triggerDB, redisClient) {
             if (endpointAuth[0] === uuid && endpointAuth[1] === key) {
                 next();
             } else {
-                logger.warn(method, 'Invalid key');
+                logger.warn(method, ': Alarms provider detected invalid key');
                 return sendError(method, HttpStatus.UNAUTHORIZED, 'Invalid key', res);
             }
         } else {
@@ -458,7 +468,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                                 self.redisClient.publish(self.redisKey, redundantHost);
                             })
                             .catch(err => {
-                                logger.error(method, err);
+                                logger.error(method, "Failed to switch to partner alarm provider while handling SIGTERM, " +err);
                             });
                         }
                     });
@@ -493,7 +503,12 @@ module.exports = function (logger, triggerDB, redisClient) {
             request(requestOptions, cb);
         })
         .catch(err => {
-            cb(err);
+        	//********************************************************************
+        	//* added the "source" identifier to enable the callback functions
+        	//* to detect if the error happen in handleAuth (IAM or key) or in 
+        	//* the http call to openwhisk 
+        	//********************************************************************
+            cb(err, undefined, "auth_handling");
         });
     };
 
@@ -517,28 +532,28 @@ module.exports = function (logger, triggerDB, redisClient) {
                 } else {
                     self.sanitizer.deleteTrigger(triggerData, 0)
                     .then(info => {
-                        logger.info(method, triggerIdentifier, info);
+                        logger.info(method, triggerIdentifier, ":", info);
                     })
                     .catch(err => {
-                        logger.error(method, triggerIdentifier, err);
+                        logger.error(method, triggerIdentifier, ":", err);
                     });
                 }
             } else {
                 disableTrigger(triggerIdentifier, undefined, 'Automatically disabled after firing once');
-                logger.info(method, 'the fire once date has expired, disabled', triggerIdentifier);
+                logger.info(method, triggerIdentifier, ': The fire once date has expired, disabled the trigger ');
             }
         } else if (triggerData.stopDate) {
             //check if the next scheduled trigger is after the stop date
             if (triggerData.cronHandle && triggerData.cronHandle.nextDate().isAfter(new Date(triggerData.stopDate))) {
                 disableTrigger(triggerIdentifier, undefined, 'Automatically disabled after firing last scheduled cron trigger');
-                logger.info(method, 'last scheduled cron trigger before stop date, disabled', triggerIdentifier);
+                logger.info(method, triggerIdentifier,  ': Last scheduled cron trigger before stop date, disabled trigger ');
             } else if (triggerData.minutes && (Date.now() + (triggerData.minutes * 1000 * 60) > new Date(triggerData.stopDate).getTime())) {
                 disableTrigger(triggerIdentifier, undefined, 'Automatically disabled after firing last scheduled interval trigger');
-                logger.info(method, 'last scheduled interval trigger before stop date, disabled', triggerIdentifier);
+                logger.info(method, triggerIdentifier, ': Last scheduled interval trigger before stop date, disabled trigger');
             }
         } else if (triggerData.maxTriggers && triggerData.triggersLeft === 0) {
             disableTrigger(triggerIdentifier, undefined, 'Automatically disabled after reaching max triggers');
-            logger.warn(method, 'no more triggers left, disabled', triggerIdentifier);
+            logger.warn(method, triggerIdentifier,  ': No more triggers left, disabled trigger');
         }
     }
 

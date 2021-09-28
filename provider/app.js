@@ -52,6 +52,13 @@ var databaseName = dbPrefix + constants.TRIGGER_DB_SUFFIX;
 var redisUrl = process.env.REDIS_URL;
 var monitoringAuth = process.env.MONITORING_AUTH;
 var monitoringInterval = process.env.MONITORING_INTERVAL;
+if ( monitoringInterval ) {
+	var firstMonitoringWaittime = Math.round(monitoringInterval / 5)
+} else {
+	var firstMonitoringWaittime = Math.round(constants.MONITOR_INTERVAL / 5)
+}
+
+
 
 // Create the Provider Server
 var server = http.createServer(app);
@@ -150,11 +157,29 @@ function init(server) {
 
         providerManager.initAllTriggers();
 
+        //*****************************************************************
+        //* Trigger a single self-test (monitor) run  immediately after 
+        //* starting the provider to ensure that monitoringService calls to 
+        //* the health endpoint will provide a result. 
+        //* - ca 1 min  delay to ensure that the providers asynchronous start handling 
+        //*   is completed 
+        //********************************************************************
+        if (monitoringAuth) {
+            setTimeout(function () {
+                providerHealth.monitor(monitoringAuth);
+            }, firstMonitoringWaittime );
+        }
+        
+        //***********************************************************************
+        //* start the interval for the self-test monitoring  ( ideal interval 
+        //* every 5 min) 
+        //************************************************************************
         if (monitoringAuth) {
             setInterval(function () {
                 providerHealth.monitor(monitoringAuth);
             }, monitoringInterval || constants.MONITOR_INTERVAL);
         }
+        
     })
     .catch(err => {
         logger.error(method, 'The following connection error occurred:', err);

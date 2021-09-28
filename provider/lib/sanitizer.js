@@ -32,14 +32,14 @@ module.exports = function (logger, manager) {
                                 self.deleteTriggerFromDB(triggerID, (retryCount + 1));
                             }, 1000);
                         } else {
-                            logger.error(method, triggerID, 'there was an error deleting the trigger from the database');
+                            logger.error(method, triggerID, ': There was an error deleting the trigger from the provider configuration database :', err);
                         }
                     } else {
-                        logger.info(method, triggerID, 'trigger was successfully deleted from the database');
+                        logger.info(method, triggerID, ': Trigger was successfully deleted from the provider configuration database');
                     }
                 });
             } else {
-                logger.error(method, triggerID, 'could not find the trigger in the database');
+                logger.error(method, triggerID, ': Could not find the trigger in the database :', err);
             }
         });
     };
@@ -52,15 +52,24 @@ module.exports = function (logger, manager) {
             method: 'get',
             uri: triggerData.uri
         }, function (error, response, body) {
-            logger.info(method, triggerIdentifier, 'http get request, STATUS:', response ? response.statusCode : undefined);
+            logger.info(method, triggerIdentifier, ': http get request, STATUS:', response ? response.statusCode : undefined);
 
-            if (error || response.statusCode >= 400) {
-                logger.error(method, triggerIdentifier, 'trigger get request failed');
+            //***************************************************************
+            //* in case of error, the body parm contains the source info 
+            //**************************************************************
+            if ( error && body == "auth_handling") {
+                logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
+            }
+
+            if (error ) {
+                logger.error(method, triggerIdentifier, ': Trigger get request failed :' , error);
+            } else if ( response.statusCode >= 400) {
+                logger.error(method, triggerIdentifier, ': Trigger get request failed , with status Code :' , response.statusCode);
             } else {
                 //delete the trigger
                 self.deleteTrigger(triggerData, 0)
                 .then((info) => {
-                    logger.info(method, triggerIdentifier, info);
+                    logger.info(method, triggerIdentifier, ":", info);
                     if (body) {
                         try {
                             var jsonBody = JSON.parse(body);
@@ -70,12 +79,12 @@ module.exports = function (logger, manager) {
                                 self.deleteRule(triggerData, rule, uri, 0);
                             }
                         } catch (err) {
-                            logger.error(method, triggerIdentifier, err);
+                            logger.error(method, triggerIdentifier, ': Failed to delete Rule :', err);
                         }
                     }
                 })
                 .catch(err => {
-                    logger.error(method, triggerIdentifier, err);
+                    logger.error(method, triggerIdentifier,': Failed to delete trigger :', err);
                 });
             }
         });
@@ -90,25 +99,30 @@ module.exports = function (logger, manager) {
             manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
-            }, function (error, response) {
-                logger.info(method, triggerIdentifier, 'http delete request, STATUS:', response ? response.statusCode : undefined);
+            }, function (error, response, source ) {
+            
+                if ( error && source == "auth_handling") {
+                    logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
+                }
+                
+                logger.info(method, triggerIdentifier, ': http delete request, STATUS :', response ? response.statusCode : undefined );
                 if (error || response.statusCode >= 400) {
                     if (!error && response.statusCode === 409 && retryCount < 5) {
-                        logger.info(method, 'attempting to delete trigger again', triggerIdentifier, 'Retry Count:', (retryCount + 1));
+                        logger.info(method, triggerIdentifier, ': Attempt to delete trigger again : Retry Count:', (retryCount + 1));
                         setTimeout(function () {
                             self.deleteTrigger(triggerData, (retryCount + 1))
                             .then(info => {
                                 resolve(info);
                             })
                             .catch(err => {
-                                reject(err);
+                                reject( 'retry of deleteTrigger ', triggerIdentifier,  ' failed with ', err);
                             });
                         }, 1000);
                     } else {
-                        reject('trigger delete request failed');
+                        reject('trigger ', triggerIdentifier,  'delete request failed');
                     }
                 } else {
-                    resolve('trigger delete request was successful');
+                    resolve('trigger ', triggerIdentifier, 'delete request was successful');
                 }
             });
         });
@@ -120,19 +134,22 @@ module.exports = function (logger, manager) {
         manager.authRequest(triggerData, {
             method: 'delete',
             uri: uri
-        }, function (error, response) {
-            logger.info(method, rule, 'http delete rule request, STATUS:', response ? response.statusCode : undefined);
+        }, function (error, response, source ) {
+            if ( error && source == "auth_handling") {
+               logger.error(method, rule, ': Error in handleAuth() request for trigger :', error);
+            }
+            logger.info(method, rule, ': http delete rule request for rule finish with STATUS :', response ? response.statusCode : undefined);
             if (error || response.statusCode >= 400) {
                 if (!error && response.statusCode === 409 && retryCount < 5) {
-                    logger.info(method, 'attempting to delete rule again', rule, 'Retry Count:', (retryCount + 1));
+                    logger.info(method, rule,': Attempt to delete rule again, Retry Count :', (retryCount + 1));
                     setTimeout(function () {
                         self.deleteRule(triggerData, rule, uri, (retryCount + 1));
                     }, 1000);
                 } else {
-                    logger.error(method, rule, 'rule delete request failed');
+                    logger.error(method, rule, ':Rule delete request failed after all retries');
                 }
             } else {
-                logger.info(method, rule, 'rule delete request was successful');
+                logger.info(method, rule, ': Rule delete request was successful');
             }
         });
     };
@@ -152,13 +169,13 @@ module.exports = function (logger, manager) {
 
                     manager.db.insert(updatedTrigger, triggerID, function (err) {
                         if (err) {
-                            reject(err);
+                            reject('in subcall updateTrigger', err);
                         } else {
                             resolve(triggerID);
                         }
                     });
                 } else {
-                    reject(err);
+                    reject( 'in subcall getTrigger',err);
                 }
             });
         })
@@ -166,7 +183,7 @@ module.exports = function (logger, manager) {
             self.deleteTriggerFromDB(triggerID, 0);
         })
         .catch(err => {
-            logger.error(method, triggerID, 'an error occurred while deleting the trigger feed', err);
+            logger.error(method, triggerID, ': An error occurred while deleting the trigger feed :', err);
         });
 
     };

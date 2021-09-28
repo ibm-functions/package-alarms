@@ -37,10 +37,20 @@ module.exports = function (logger, manager) {
 
         var stats = {triggerCount: Object.keys(manager.triggers).length};
         
+        // Write log info if the health endpoint is called when invalid monitoring status 
+        // is available. monitorStatus is initialized  
+        if ( monitorStatus ) {
+          var monitorStatusSize = Object.keys(monitorStatus).length;
+          if (monitorStatusSize < 5) {
+            logger.info(method, triggerNamePrefix, ': Probably invalid MonitorStatus available : ( ' +JSON.stringify( monitorStatus ) + ')' );
+          }
+        }  
+ 
+        
         // Write log info if the health enpoint is called when no monitoring status 
         // is available. (Maybe the self-test has not already executed after a restart) 
         if ( !monitorStatus ) {
-            logger.info(method, triggerNamePrefix, 'No MonitorStatus available. (Potentially the alarm backendprovider was restarted in the last hour)');
+            logger.info(method, triggerNamePrefix, ': No MonitorStatus available : (Potentially the alarm backendprovider was restarted in the last hour)');
         }
 
         // get all system stats in parallel
@@ -96,10 +106,10 @@ module.exports = function (logger, manager) {
             };
             manager.sanitizer.deleteTrigger(triggerData, 0)
             .then((info) => {
-                logger.info(method, existingID, info);
+                logger.info(method, existingID,": Deleting trigger in openwhisk :",  info);
             })
             .catch(err => {
-                logger.error(method, existingID, err);
+                logger.error(method, existingID, ": Failed to delete trigger in openwhisk :",  err);
             });
 
             var existingAlarmIndex = alarmTypes.indexOf(monitorStatus.triggerType);
@@ -118,12 +128,12 @@ module.exports = function (logger, manager) {
         var triggerID = `${userAuth}/_/${triggerName}`;
         createTrigger(triggerURL, apikey)
         .then((info) => {
-            logger.info(method, triggerID, info);
+            logger.info(method, triggerID, ": ", info);
             var newTrigger = createAlarmTrigger(alarmType);
             createTriggerInDB(triggerID, newTrigger);
         })
         .catch(err => {
-            logger.error(method, triggerID, err);
+            logger.error(method, triggerID, ": ",  err);
         });
     };
 
@@ -162,9 +172,15 @@ module.exports = function (logger, manager) {
                 uri: triggerURL,
                 json: true,
                 body: {}
-            }, function (error, response) {
+            }, function (error, response , source ) {
                 if (error || response.statusCode >= 400) {
-                    reject('monitoring trigger create request failed');
+                	var reject_msg = "monitoring trigger create request failed in call to ";
+                	if ( error && source == "auth_handling") { 
+                        reject_msg += "authHandler, " +(response ? response.statusCode : error )  ; 
+                	}else{
+                		reject_msg += "openWhisk, " +(response ? response.statusCode : error ) ; 
+                	}  
+                	reject(reject_msg); 
                 } else {
                     resolve('monitoring trigger create request was successful');
                 }
@@ -177,9 +193,9 @@ module.exports = function (logger, manager) {
 
         manager.db.insert(newTrigger, triggerID, function (err) {
             if (!err) {
-                logger.info(method, triggerID, 'successfully inserted monitoring trigger');
+                logger.info(method, triggerID, ': successfully inserted monitoring trigger');
             } else {
-                logger.error(method, triggerID, err);
+                logger.error(method, triggerID, " : Failed to create trigger in provider configuration DB :", err);
             }
         });
     }
