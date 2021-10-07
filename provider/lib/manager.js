@@ -387,8 +387,38 @@ module.exports = function (logger, triggerDB, redisClient) {
             feed.on('error', function (err) {
                 logger.error(method, ": Error while receiving DB changes from trigger configuration DB :" + err);
             });
+            
+            feed.on('stop', function () {
+                logger.error(method, "Alarm provider stop change listening socket to alarm trigger configuration database");
+            });
 
             feed.follow();
+            
+            //**********************************************************
+            //* additional feed listeners for logging purpose to get info 
+            //* about DB change listener socket to trigger config DB 
+            //***********************************************************
+            feed.on('confirm_request', function (req) {
+                logger.info(method, 'Alarm provider establish change listen socket to alarm trigger configuration database');
+            });
+            
+            feed.on('confirm', function () {
+                logger.info(method, 'Alarm provider starts listening for changes in alarm trigger configuration database');
+            });
+            
+            feed.on('timeout', function (info) {
+                logger.info(method, 'Got timeout while listening changes in alarm trigger configuration database:', JSON.stringify(info));
+            });
+            
+            feed.on('catchup', function (seq_id) {
+                logger.info(method, 'Changes sequences number adjusted to :', JSON.stringify(seq_id));
+            });
+            
+            feed.on('retry', function (info) {
+                logger.info(method, 'Follow lib retries to establish listening changes socket to alarm trigger configuration database:', JSON.stringify(info));
+            });
+            
+            
         } catch (err) {
             logger.error(method, ": Error while setting up change listener on provider configuration DB : " + err);
         }
