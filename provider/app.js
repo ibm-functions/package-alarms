@@ -109,6 +109,7 @@ function createRedisClient() {
             }
 
             client.on('connect', function () {
+                logger.info(method, 'Successfully connected to redis');
                 resolve(client);
             });
 
@@ -117,6 +118,7 @@ function createRedisClient() {
                 reject(err);
             });
         } else {
+            logger.info(method, 'Cloudant provider init without redis connection (test mode) ');
             resolve();
         }
     });

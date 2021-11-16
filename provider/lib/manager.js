@@ -479,7 +479,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                 });
 
                 subscriber.on('error', function (err) {
-                    logger.error(method, 'Error connecting to redis', err);
+                    logger.error(method, 'Error connecting to redis while subscription', err);
                     reject(err);
                 });
 
@@ -487,6 +487,20 @@ module.exports = function (logger, triggerDB, redisClient) {
 
                 redisClient.hgetAsync(self.redisKey, self.redisField)
                 .then(activeHost => {
+                	//************************************************
+                	//* Start regularly Redis synchronization, to recover
+                	//* from "Redis-Out-of-sync" situations (all 10 min) 
+                	//************************************************
+                	setInterval(function () {
+                   		logger.info(method, 'Redis synchronizer checks if [ ', self.activeHost, ' ] is still the valid one');
+                		redisClient.hgetAsync(self.redisKey, self.redisField)
+                        .then(activeHost => {
+                        	if ( activeHost != null && activeHost != "" && self.activeHost != activeHost ){
+                        		logger.info(method, 'Redis synchronizer updated active host to: ', activeHost);
+                        		self.activeHost = activeHost;
+                        	}
+                         })	
+                     }, 600000 );
                     return initActiveHost(activeHost);
                 })
                 .then(() => {
@@ -505,10 +519,11 @@ module.exports = function (logger, triggerDB, redisClient) {
                     resolve();
                 })
                 .catch(err => {
-                    reject(err);
+                	  reject(method, err);
                 });
             } else {
-                resolve();
+            	logger.info(method, 'Running cloudant provider worker without redis connection (test mode) ');
+            	resolve();
             }
         });
     };
@@ -522,6 +537,7 @@ module.exports = function (logger, triggerDB, redisClient) {
             return redisClient.hsetAsync(self.redisKey, self.redisField, self.activeHost);
         } else {
             self.activeHost = activeHost;
+            logger.info(method, 'start provider with activeHost = ',  self.activeHost);
             return Promise.resolve();
         }
     }
