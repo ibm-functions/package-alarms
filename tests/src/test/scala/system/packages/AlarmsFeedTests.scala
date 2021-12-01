@@ -63,12 +63,15 @@ class AlarmsFeedTests
                 action.create(name, defaultAction)
             }
 
+            val startDate = System.currentTimeMillis + (1000 * 61)
+
             // create trigger with feed
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) =>
                 trigger.create(name, feed = Some(s"$packageName/alarm"), parameters = Map(
                     "trigger_payload" -> "alarmTest".toJson,
                     "cron" -> "* * * * *".toJson,
+                    "startDate" -> startDate.toJson,
                     "maxTriggers" -> 1.toJson))
             }
 
