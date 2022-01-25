@@ -489,7 +489,8 @@ module.exports = function (logger, triggerDB, redisClient) {
                 .then(activeHost => {
                 	//************************************************
                 	//* Start regularly Redis synchronization, to recover
-                	//* from "Redis-Out-of-sync" situations (all 10 min) 
+                	//* from "Redis-Out-of-sync" situations (all 9 min , 
+                	//* because default inactivity timeout is 10 min ) 
                 	//************************************************
                 	setInterval(function () {
                    		logger.info(method, 'Redis synchronizer checks if [ ', self.activeHost, ' ] is still the valid one');
@@ -503,7 +504,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                          .catch(err => {
                              logger.error(method, "Redis synchronizer regular run fails with :",  err);
                          })
-                     }, 600000 );
+                     }, 540000 );
                     return initActiveHost(activeHost);
                 })
                 .then(() => {
