@@ -51,7 +51,8 @@ module.exports = function (logger, manager) {
         manager.authRequest(triggerData, {
             method: 'get',
             uri: triggerData.uri
-        }, function (error, response, body) {
+        },undefined ,
+        function (error, response, body) {
             logger.info(method, triggerIdentifier, ': http get request, STATUS:', response ? response.statusCode : undefined);
 
             //***************************************************************
@@ -99,7 +100,8 @@ module.exports = function (logger, manager) {
             manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
-            }, function (error, response, source ) {
+            }, undefined, 
+            function (error, response, source ) {
             
                 if ( error && source == "auth_handling") {
                     logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
@@ -134,7 +136,8 @@ module.exports = function (logger, manager) {
         manager.authRequest(triggerData, {
             method: 'delete',
             uri: uri
-        }, function (error, response, source ) {
+        }, undefined,
+        function (error, response, source ) {
             if ( error && source == "auth_handling") {
                logger.error(method, rule, ': Error in handleAuth() request for trigger :', error);
             }

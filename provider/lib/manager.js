@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-var request = require('request');
+var needle = require('needle');
 var HttpStatus = require('http-status-codes');
 var lt = require('long-timeout');
 var constants = require('./constants.js');
@@ -159,9 +159,9 @@ module.exports = function (logger, triggerDB, redisClient) {
 
             self.authRequest(triggerData, {
                 method: 'post',
-                uri: triggerData.uri,
-                json: triggerData.payload
-            }, function (error, response, source ) {
+                uri: triggerData.uri
+            },triggerData.payload ,
+            function (error, response, source ) {
                 try {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
@@ -292,8 +292,9 @@ module.exports = function (logger, triggerDB, redisClient) {
                         logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
                         self.authRequest(doc, {
                             method: 'get',
-                            url: uri
-                        }, function (error, response, source ) {
+                            uri: uri
+                        }, undefined,
+                        function (error, response, source ) {
                         	
                         	if (error && source == "auth_handling") {
                               logger.error(method,  triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
@@ -459,6 +460,7 @@ module.exports = function (logger, triggerDB, redisClient) {
         }
     };
 
+
     function sendError(method, code, message, res) {
         logger.error(method, message);
         res.status(code).json({error: message});
@@ -546,11 +548,42 @@ module.exports = function (logger, triggerDB, redisClient) {
         }
     }
 
-    this.authRequest = function (triggerData, options, cb) {
+    this.authRequest = function (triggerData, options, body, cb) {
 
         authHandler.handleAuth(triggerData, options)
         .then(requestOptions => {
-            request(requestOptions, cb);
+            //**********************************************************
+        	//* input options must be adapted to match the usage 
+        	//* of the needle-package (substitution of request-package)
+        	//* Current limitation is, that no query parameters are 
+        	//* considered, because providers do not need them. 
+        	//**********************************************************
+        	var needleMethod = requestOptions.method; 
+        	var needleUrl = requestOptions.uri;
+        	var needleOptions = {
+                rejectUnauthorized: false
+            };
+            if( requestOptions.auth.user ) {   //* cf-based authorization 
+                const usernamePassword = requestOptions.auth.user  +":"+ requestOptions.auth.pass;
+                const usernamePasswordEnc = Buffer.from(usernamePassword).toString('base64');
+                needleOptions.headers = {}
+                needleOptions.headers['Authorization'] = "Basic " + usernamePasswordEnc
+            }else if ( requestOptions.auth.bearer) { //* IAM based authorization 
+                needleOptions.headers = {}
+                needleOptions.headers['Authorization'] = 'Bearer ' +  requestOptions.auth.bearer
+            }else {
+            	logger.info(method, "no authentication info available");
+            }
+        
+           	if (needleMethod === 'get') {
+        		needleOptions.json = false
+                needle.request( needleMethod, needleUrl, undefined, needleOptions ,cb);
+        	   
+        	}else {
+        	    needleOptions.json = true
+                needleParams = body;
+        	    needle.request( needleMethod, needleUrl, needleParams, needleOptions ,cb);
+            }
         })
         .catch(err => {
         	//********************************************************************
