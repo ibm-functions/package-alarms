@@ -97,10 +97,11 @@ module.exports = function (logger, manager) {
         return new Promise(function (resolve, reject) {
 
             var triggerIdentifier = triggerData.triggerID;
+            var body = {};
             manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
-            }, undefined, 
+            }, body, 
             function (error, response, source ) {
             
                 if ( error && source == "auth_handling") {
@@ -132,11 +133,12 @@ module.exports = function (logger, manager) {
 
     this.deleteRule = function (triggerData, rule, uri, retryCount) {
         var method = 'deleteRule';
-
-        manager.authRequest(triggerData, {
+         
+        var body = {}; 
+        manager.authRequest(triggerData, {  
             method: 'delete',
             uri: uri
-        }, undefined,
+        }, body,
         function (error, response, source ) {
             if ( error && source == "auth_handling") {
                logger.error(method, rule, ': Error in handleAuth() request for trigger :', error);
