@@ -73,8 +73,11 @@ module.exports = function (logger, manager) {
                     logger.info(method, triggerIdentifier, ":", info);
                     if (body) {
                         try {
-                            var jsonBody = JSON.parse(body);
-                            for (var rule in jsonBody.rules) {
+                            //******************************************************
+                            //* Get the rule name (to delete) from the response body
+                            //* of the trigger get command 
+                            //******************************************************
+                            for (var rule in body.rules) {
                                 var qualifiedName = rule.split('/');
                                 var uri = manager.uriHost + '/api/v1/namespaces/' + qualifiedName[0] + '/rules/' + qualifiedName[1];
                                 self.deleteRule(triggerData, rule, uri, 0);
