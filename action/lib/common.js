@@ -15,43 +15,80 @@
  * limitations under the License.
  */
 
-const request = require('request');
+const needle = require('needle');
 const openwhisk = require('openwhisk');
 const config = require('./config');
 
 function requestHelper(url, input, method) {
-
-    return new Promise(function (resolve, reject) {
-
-        var options = {
-            method: method,
-            url: url,
-            json: true,
-            rejectUnauthorized: false
-        };
-
+     return new Promise(function (resolve, reject) {
         if (method === 'get') {
-            options.qs = input;
-        } else {
-            options.body = input;
-        }
-
-        request(options, function (error, response, body) {
-
-            if (!error && response.statusCode === 200) {
-                resolve(body);
-            } else {
-                if (response) {
-                    console.log('alarm: Error invoking whisk action:', response.statusCode, body);
-                    reject(body);
+            //********************************************************
+            //* set json:false to control that needle do not add the 
+            //* input parameters to the http request body 
+            //********************************************************             
+            var options = {
+                json : false,
+                rejectUnauthorized: false
+            };
+            url = url + "?" + serialize(input)
+            needle.request( 'get', url, undefined, options , function (error, response, body) {
+                if (!error && response.statusCode === 200) {
+                    resolve(body);
                 } else {
-                    console.log('alarm: Error invoking whisk action:', error);
-                    reject(error);
+                    if (response) {
+                        console.log('alarm: Error invoking whisk action (',method,'):', response.statusCode, body);
+                        reject(body);
+                    } else {
+                        console.log('alarm: Error invoking whisk action(',method,'):', error);
+                        reject(error);
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            //********************************************************
+            //* set json:true to control that needle adds the 
+            //* input parameters to the http request body 
+            //********************************************************             
+            var options = {
+                json : true,
+                rejectUnauthorized: false
+            };
+            needle.request( method, url, input, options , function (error, response, body) {
+                if (!error && response.statusCode === 200) {
+                    resolve(body);
+                } else {
+                    if (response) {
+                        console.log('alarm: Error invoking whisk action (', method ,'):', response.statusCode, body);
+                        reject(body);
+                    } else {
+                        console.log('alarm: Error invoking whisk action (', method ,'):', error);
+                        reject(error);
+                    }
+                }
+            }); 
+        }   
     });
 }
+
+
+//***************************************************************
+//* helper function to format parameters to an url-encoded string 
+//***************************************************************
+serialize = function(obj, prefix) {
+  var str = [],
+  p;
+  for (p in obj) {
+    if (obj.hasOwnProperty(p)) {
+      var k = prefix ? prefix + "[" + p + "]" : p,
+        v = obj[p];
+        str.push((v !== null && typeof v === "object") ?
+        serialize(v, k) :
+        encodeURIComponent(k) + "=" + encodeURIComponent(v));
+    }
+  }
+  return str.join("&");
+}
+
 
 function createWebParams(rawParams) {
     var namespace = process.env.__OW_NAMESPACE;

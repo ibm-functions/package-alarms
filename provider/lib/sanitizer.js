@@ -51,7 +51,8 @@ module.exports = function (logger, manager) {
         manager.authRequest(triggerData, {
             method: 'get',
             uri: triggerData.uri
-        }, function (error, response, body) {
+        },undefined ,
+        function (error, response, body) {
             logger.info(method, triggerIdentifier, ': http get request, STATUS:', response ? response.statusCode : undefined);
 
             //***************************************************************
@@ -72,8 +73,11 @@ module.exports = function (logger, manager) {
                     logger.info(method, triggerIdentifier, ":", info);
                     if (body) {
                         try {
-                            var jsonBody = JSON.parse(body);
-                            for (var rule in jsonBody.rules) {
+                            //******************************************************
+                            //* Get the rule name (to delete) from the response body
+                            //* of the trigger get command 
+                            //******************************************************
+                            for (var rule in body.rules) {
                                 var qualifiedName = rule.split('/');
                                 var uri = manager.uriHost + '/api/v1/namespaces/' + qualifiedName[0] + '/rules/' + qualifiedName[1];
                                 self.deleteRule(triggerData, rule, uri, 0);
@@ -96,10 +100,12 @@ module.exports = function (logger, manager) {
         return new Promise(function (resolve, reject) {
 
             var triggerIdentifier = triggerData.triggerID;
+            var body = {};
             manager.authRequest(triggerData, {
                 method: 'delete',
                 uri: triggerData.uri
-            }, function (error, response, source ) {
+            }, body, 
+            function (error, response, source ) {
             
                 if ( error && source == "auth_handling") {
                     logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
@@ -130,11 +136,13 @@ module.exports = function (logger, manager) {
 
     this.deleteRule = function (triggerData, rule, uri, retryCount) {
         var method = 'deleteRule';
-
-        manager.authRequest(triggerData, {
+         
+        var body = {}; 
+        manager.authRequest(triggerData, {  
             method: 'delete',
             uri: uri
-        }, function (error, response, source ) {
+        }, body,
+        function (error, response, source ) {
             if ( error && source == "auth_handling") {
                logger.error(method, rule, ': Error in handleAuth() request for trigger :', error);
             }

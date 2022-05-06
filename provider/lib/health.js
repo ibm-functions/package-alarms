@@ -167,12 +167,13 @@ module.exports = function (logger, manager) {
     function createTrigger(triggerURL, apikey) {
 
         return new Promise(function (resolve, reject) {
+            var body = {};
             manager.authRequest({apikey: apikey}, {
                 method: 'put',
                 uri: triggerURL,
-                json: true,
-                body: {}
-            }, function (error, response , source ) {
+                json: true
+            },body ,
+             function (error, response , source ) {
                 if (error || response.statusCode >= 400) {
                 	var reject_msg = "monitoring trigger create request failed in call to ";
                 	if ( error && source == "auth_handling") { 
