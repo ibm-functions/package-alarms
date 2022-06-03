@@ -489,6 +489,24 @@ module.exports = function (logger, triggerDB, redisClient) {
 
                 redisClient.hgetAsync(self.redisKey, self.redisField)
                 .then(activeHost => {
+                	//*********************************************************
+                	//* Call a one time sync immediately after init() - 10 sec 
+                	//* to fix Sev1 situation when hgetAsync() and subscribe() 
+                	//* provide different info 
+                	//**********************************************************
+                	setTimeout(function () {
+                   		logger.info(method, 'Redis one-time synchronizer checks if [ ', self.activeHost, ' ] is still the valid one');
+                		redisClient.hgetAsync(self.redisKey, self.redisField)
+                        .then(activeHost => {
+                        	if ( activeHost != null && activeHost != "" && self.activeHost != activeHost ){
+                        		logger.info(method, 'Redis one-time synchronizer updated active host to: ', activeHost);
+                        		self.activeHost = activeHost;
+                        	}
+                         })
+                         .catch(err => {
+                             logger.error(method, "Redis one-time synchronizer regular run fails with :",  err);
+                         })
+                     }, 10000 );
                 	//************************************************
                 	//* Start regularly Redis synchronization, to recover
                 	//* from "Redis-Out-of-sync" situations (all 9 min , 
