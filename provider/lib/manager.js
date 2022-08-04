@@ -534,11 +534,13 @@ module.exports = function (logger, triggerDB, redisClient) {
                             self.redisClient.hsetAsync(self.redisKey, self.redisField, redundantHost)
                             .then(() => {
                                 self.redisClient.publish(self.redisKey, redundantHost);
+                           		logger.info(method, 'SIGTERM handler switched active host to: ', redundantHost);
                             })
                             .catch(err => {
                                 logger.error(method, "Failed to switch to partner alarm provider while handling SIGTERM, " +err);
-                            });
+                            });    
                         }
+                		logger.info(method, 'SIGTERM handler finished ');
                     });
                     resolve();
                 })
