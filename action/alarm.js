@@ -33,8 +33,13 @@ function main(msg) {
 
     var endpoint = msg.apihost;
     var webparams = common.createWebParams(msg);
+    /****************************************************************
+    * add a referenceTriggerName to the Url to have an identifier to
+    * correlate all PUT and POST calls in a create trigger sequence 
+    *****************************************************************/
+    var refTrigger=webparams.triggerName
 
-    var url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http`;
+    var url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http` + '?reftriggername=' + refTrigger;
 
     if (lifecycleEvent in eventMap) {
         var method = eventMap[lifecycleEvent];
