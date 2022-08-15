@@ -125,13 +125,13 @@ function verifyTriggerAuth(triggerData, isDelete) {
            if (err.statusCode) {
                var statusCode = err.statusCode;
                if (!(isDelete && statusCode === 404)) {
-            	   var resultMsg='Check for trigger ('+ triggerData.name + ') in namespace (' + triggerData.namespace + ') failed with status code =' + statusCode + ', msg = '
+            	   var resultMsg='Check for trigger \"'+ triggerData.name + '\" in namespace \"' + triggerData.namespace + '\" failed with status code =' + statusCode ; 
                    reject(sendError(statusCode, resultMsg, err.message));
                } else {
                    resolve();
                }
            } else {
-        	   var resultMsg='Check for trigger ('+ triggerData.name + ') in namespace (' + triggerData.namespace + ') failed with unknown status code, msg = '
+        	   var resultMsg='Check for trigger \"'+ triggerData.name + '\" in namespace \"' + triggerData.namespace + '\" failed with unknown status code';
                reject(sendError(400, resultMsg, err.message));
            }
         });

@@ -71,7 +71,10 @@ class AlarmsFeedWebTests
 
     it should "reject post of a trigger when authentication fails" in {
         val params = JsObject(originalParams.fields + ("cron" -> JsString("* * * * *")))
-        makePostCallWithExpectedResult(params, JsObject("error" -> JsString("Trigger authentication request failed.")), 401)
+        /* 
+        * expected error message resut starts with 'Check for trigger'
+        */
+        makePostCallWithExpectedResult(params, JsObject("error" -> JsString("Check for trigger")), 401)
     }
 
     it should "reject delete of a trigger due to missing triggerName argument" in {
@@ -81,7 +84,10 @@ class AlarmsFeedWebTests
     }
 
     it should "reject delete of a trigger when authentication fails" in {
-        makeDeleteCallWithExpectedResult(originalParams, JsObject("error" -> JsString("Trigger authentication request failed.")), 401)
+        /* 
+        * expected error message resut starts with 'Check for trigger'
+        */
+        makeDeleteCallWithExpectedResult(originalParams, JsObject("error" -> JsString("Check for trigger")), 401)
     }
 
     def makePostCallWithExpectedResult(params: JsObject, expectedResult: JsObject, expectedCode: Int) = {
