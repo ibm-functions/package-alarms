@@ -39,10 +39,16 @@ function main(msg) {
     *****************************************************************/
     var refTrigger=webparams.triggerName
 
-    var url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http` + '?reftriggername=' + refTrigger;
+    var url = "";
 
     if (lifecycleEvent in eventMap) {
         var method = eventMap[lifecycleEvent];
+        if (method === 'get') {
+          url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http`;
+        }
+        else{
+          url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http` + '?reftriggername=' + refTrigger;
+        }
         return common.requestHelper(url, webparams, method);
     } else {
         return Promise.reject('unsupported lifecycleEvent');
