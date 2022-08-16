@@ -74,7 +74,7 @@ class AlarmsFeedWebTests
         /* 
         * expected error message resut starts with 'Check for trigger'
         */
-        makePostCallWithExpectedResult(params, String("Check for trigger"), 401)
+        makePostCallWithExpectedResult(params, new String("Check for trigger"), 401)
     }
 
     it should "reject delete of a trigger due to missing triggerName argument" in {
@@ -87,7 +87,7 @@ class AlarmsFeedWebTests
         /* 
         * expected error message resut starts with 'Check for trigger'
         */
-        makeDeleteCallWithExpectedResult(originalParams, String("Check for trigger"), 401)
+        makeDeleteCallWithExpectedResult(originalParams, new String("Check for trigger"), 401)
     }
 
     def makePostCallWithExpectedResult(params: JsObject, expectedResult: JsObject, expectedCode: Int) = {
@@ -107,9 +107,8 @@ class AlarmsFeedWebTests
                 .body(params.toString())
                 .post(webActionURL)
         assert(response.statusCode() == expectedCode)
-        response.body.asString should contain expectedResult
+        response.body.asString should include (expectedResult)
     }
-
 
 
     def makeDeleteCallWithExpectedResult(params: JsObject, expectedResult: JsObject, expectedCode: Int) = {
@@ -121,5 +120,16 @@ class AlarmsFeedWebTests
         assert(response.statusCode() == expectedCode)
         response.body.asString.parseJson.asJsObject shouldBe expectedResult
     }
+
+    def makeDeleteCallWithExpectedResult(params: JsObject, expectedResult: String, expectedCode: Int) = {
+        val response = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .config(RestAssured.config().sslConfig(new SSLConfig().relaxedHTTPSValidation()))
+                .body(params.toString())
+                .delete(webActionURL)
+        assert(response.statusCode() == expectedCode)
+        response.body.asString should include (expectedResult)
+    }
+
 
 }
