@@ -33,11 +33,22 @@ function main(msg) {
 
     var endpoint = msg.apihost;
     var webparams = common.createWebParams(msg);
+    /****************************************************************
+    * add a referenceTriggerName to the Url to have an identifier to
+    * correlate all PUT and POST calls in a create trigger sequence 
+    *****************************************************************/
+    var refTrigger=webparams.triggerName
 
-    var url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http`;
+    var url = "";
 
     if (lifecycleEvent in eventMap) {
         var method = eventMap[lifecycleEvent];
+        if (method === 'get') {
+          url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http`;
+        }
+        else{
+          url = `https://${endpoint}/api/v1/web/whisk.system/alarmsWeb/alarmWebAction.http` + '?reftriggername=' + refTrigger;
+        }
         return common.requestHelper(url, webparams, method);
     } else {
         return Promise.reject('unsupported lifecycleEvent');

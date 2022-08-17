@@ -71,7 +71,10 @@ class AlarmsFeedWebTests
 
     it should "reject post of a trigger when authentication fails" in {
         val params = JsObject(originalParams.fields + ("cron" -> JsString("* * * * *")))
-        makePostCallWithExpectedResult(params, JsObject("error" -> JsString("Trigger authentication request failed.")), 401)
+        /* 
+        * expected error message resut starts with 'Check for trigger'
+        */
+        makePostCallWithExpectedResult(params, new String("Check for trigger"), 401)
     }
 
     it should "reject delete of a trigger due to missing triggerName argument" in {
@@ -81,7 +84,10 @@ class AlarmsFeedWebTests
     }
 
     it should "reject delete of a trigger when authentication fails" in {
-        makeDeleteCallWithExpectedResult(originalParams, JsObject("error" -> JsString("Trigger authentication request failed.")), 401)
+        /* 
+        * expected error message resut starts with 'Check for trigger'
+        */
+        makeDeleteCallWithExpectedResult(originalParams, new String("Check for trigger"), 401)
     }
 
     def makePostCallWithExpectedResult(params: JsObject, expectedResult: JsObject, expectedCode: Int) = {
@@ -94,6 +100,17 @@ class AlarmsFeedWebTests
         response.body.asString.parseJson.asJsObject shouldBe expectedResult
     }
 
+   def makePostCallWithExpectedResult(params: JsObject, expectedResult: String, expectedCode: Int) = {
+        val response = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .config(RestAssured.config().sslConfig(new SSLConfig().relaxedHTTPSValidation()))
+                .body(params.toString())
+                .post(webActionURL)
+        assert(response.statusCode() == expectedCode)
+        response.body.asString should include (expectedResult)
+    }
+
+
     def makeDeleteCallWithExpectedResult(params: JsObject, expectedResult: JsObject, expectedCode: Int) = {
         val response = RestAssured.given()
                 .contentType(ContentType.JSON)
@@ -103,5 +120,16 @@ class AlarmsFeedWebTests
         assert(response.statusCode() == expectedCode)
         response.body.asString.parseJson.asJsObject shouldBe expectedResult
     }
+
+    def makeDeleteCallWithExpectedResult(params: JsObject, expectedResult: String, expectedCode: Int) = {
+        val response = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .config(RestAssured.config().sslConfig(new SSLConfig().relaxedHTTPSValidation()))
+                .body(params.toString())
+                .delete(webActionURL)
+        assert(response.statusCode() == expectedCode)
+        response.body.asString should include (expectedResult)
+    }
+
 
 }

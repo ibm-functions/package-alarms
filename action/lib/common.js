@@ -110,6 +110,13 @@ function verifyTriggerAuth(triggerData, isDelete) {
     var ow = openwhisk(owConfig);
 
     return new Promise(function (resolve, reject) {
+    	//**********************************************************************
+    	//* check if the Trigger created with a previous 
+    	//* call really exist. 
+    	//* get() may fail 
+    	//*  - if trigger does not exist 
+    	//*  - if (in case of IAM namespace) the iam.getAuthHeader() call fails 
+    	//***********************************************************************
         ow.triggers.get(triggerData.name)
         .then(() => {
             resolve();
@@ -118,12 +125,14 @@ function verifyTriggerAuth(triggerData, isDelete) {
            if (err.statusCode) {
                var statusCode = err.statusCode;
                if (!(isDelete && statusCode === 404)) {
-                   reject(sendError(statusCode, 'Trigger authentication request failed.'));
+            	   var resultMsg='Check for trigger <'+ triggerData.name + '> in namespace <' + triggerData.namespace + '> failed with status code =' + statusCode ; 
+                   reject(sendError(statusCode, resultMsg, err.message));
                } else {
                    resolve();
                }
            } else {
-               reject(sendError(400, 'Trigger authentication request failed.', err.message));
+        	   var resultMsg='Check for trigger <'+ triggerData.name + '> in namespace <' + triggerData.namespace + '> failed with unknown status code';
+               reject(sendError(400, resultMsg, err.message));
            }
         });
     });
