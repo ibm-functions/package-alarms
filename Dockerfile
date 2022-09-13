@@ -6,6 +6,7 @@ RUN apt-get update && apt-get upgrade -y
 RUN apt-get purge -y --auto-remove curl git
 
 ADD package.json /alarmsTrigger/
+RUN echo "engine-strict=true" > /alarmsTrigger/.npmrc
 RUN cd /alarmsTrigger && npm install --omit=dev
 
 ADD provider/. /alarmsTrigger/
