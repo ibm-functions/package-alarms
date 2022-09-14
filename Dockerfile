@@ -1,4 +1,4 @@
-FROM node:14
+FROM node:16
 
 RUN apt-get update && apt-get upgrade -y
 
@@ -6,6 +6,8 @@ RUN apt-get update && apt-get upgrade -y
 RUN apt-get purge -y --auto-remove curl git
 
 ADD package.json /alarmsTrigger/
-RUN cd /alarmsTrigger && npm install --production
+# let npm install call Fail in case of not matching npm engine requirements .
+RUN echo "engine-strict=true" > /alarmsTrigger/.npmrc
+RUN cd /alarmsTrigger && npm install --omit=dev
 
 ADD provider/. /alarmsTrigger/
