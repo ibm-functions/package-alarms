@@ -39,13 +39,13 @@ module.exports = function (logger, manager) {
                 logger.info(method, triggerID, ': Trigger was successfully deleted from the provider configuration database');
             })
             .catch( (err) => {
-                if (err.statusCode === 409 && retryCount < 5) {
+                if (err.code === 409 && retryCount < 5) {
                     logger.error(method, triggerID, ": There was an error deleting the trigger from the trigger configuration database with error code = 409, so will retry ");
                     setTimeout(function () {
                         self.deleteTriggerFromDB(triggerID, (retryCount + 1));
                     }, 1000);
                 } else {
-                    logger.error(method, triggerID, ': There was an error deleting the trigger from the trigger configuration database :', err , " and retry count = ",) ;
+                    logger.error(method, triggerID, ': There was an error deleting the trigger from the trigger configuration database :', err , " and retry count = ", retryCount) ;
                 }
             })
         })

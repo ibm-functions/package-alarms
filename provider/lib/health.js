@@ -183,7 +183,7 @@ module.exports = function (logger, manager) {
                 	}  
                 	reject(reject_msg); 
                 } else {
-                    resolve('monitoring trigger create in n Openwhisk DB was successful');
+                    resolve('monitoring trigger create in Openwhisk DB was successful');
                 }
             });
         });
