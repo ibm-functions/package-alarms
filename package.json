@@ -18,6 +18,8 @@
     "bluebird": "^3.5.0",
     "systeminformation": "^5.3.1",
     "long-timeout": "^0.1.1",
-    "@ibm-functions/iam-token-manager": "1.0.11"
+    "@ibm-functions/iam-token-manager": "1.0.11",
+    "@ibm-cloud/cloudant": "0.3.0",
+    "ibm-cloud-sdk-core" : "^3.2"
   }
 }

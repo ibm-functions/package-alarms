@@ -175,7 +175,7 @@ module.exports = function (logger, manager) {
             },body ,
              function (error, response , source ) {
                 if (error || response.statusCode >= 400) {
-                	var reject_msg = "monitoring trigger create request failed in call to ";
+                	var reject_msg = "monitoring trigger create in Openwhisk DB request failed in call to ";
                 	if ( error && source == "auth_handling") { 
                         reject_msg += "authHandler, " +(response ? response.statusCode : error )  ; 
                 	}else{
@@ -183,7 +183,7 @@ module.exports = function (logger, manager) {
                 	}  
                 	reject(reject_msg); 
                 } else {
-                    resolve('monitoring trigger create request was successful');
+                    resolve('monitoring trigger create in n Openwhisk DB was successful');
                 }
             });
         });
@@ -192,13 +192,18 @@ module.exports = function (logger, manager) {
     function createTriggerInDB(triggerID, newTrigger) {
         var method = 'createTriggerInDB';
 
-        manager.db.insert(newTrigger, triggerID, function (err) {
-            if (!err) {
-                logger.info(method, triggerID, ': successfully inserted monitoring trigger');
-            } else {
-                logger.error(method, triggerID, " : Failed to create trigger in provider configuration DB :", err);
-            }
-        });
+        manager.triggerDB.putDocument({
+            db: manager.databaseName,
+            docId: triggerID,
+            document: newTrigger
+        })
+        .then(response => {
+            logger.info(method, triggerID, ': successfully inserted monitoring trigger in trigger config DB ');
+        })
+        .catch( (err) => {
+            logger.error(method, triggerID, " : Failed to create monitoring trigger in trigger configuration DB :", err);
+        })
+        
     }
 
 };

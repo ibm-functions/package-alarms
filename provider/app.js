@@ -31,6 +31,10 @@ var ProviderManager = require('./lib/manager.js');
 var ProviderHealth = require('./lib/health.js');
 var ProviderActivation = require('./lib/active.js');
 var constants = require('./lib/constants.js');
+const { CloudantV1 } = require('@ibm-cloud/cloudant');
+const { BasicAuthenticator } = require('ibm-cloud-sdk-core');
+
+
 
 // Initialize the Express Application
 var app = express();
@@ -59,7 +63,6 @@ if ( monitoringInterval ) {
 }
 
 
-
 // Create the Provider Server
 var server = http.createServer(app);
 server.listen(app.get('port'), function () {
@@ -68,24 +71,31 @@ server.listen(app.get('port'), function () {
 
 function verifyDatabase() {
     var method = 'verifyDatabase';
-    logger.info(method, 'verifying alarms database exists');
+    logger.info(method, 'Setup Trigger configDB connection and verify if database exists');
 
-    var nano = require('nano')(dbProtocol + '://' + dbUsername + ':' + dbPassword + '@' + dbHost);
-
-    if (nano !== null) {
-        return new Promise(function (resolve, reject) {
-            nano.db.get(databaseName, function (err) {
-                if (!err) {
-                    resolve(nano.db.use(databaseName));
-                } else {
-                    logger.error(method, 'failed to find trigger database:', databaseName, err);
-                    reject(err);
-                }
-            });
+	const authenticator = new BasicAuthenticator({
+		username: dbUsername,
+		password: dbPassword,
+	});
+	const options = {
+		authenticator,
+	};
+	
+	var client = CloudantV1.newInstance(options); 
+	var dbURL = `https://${dbHost}`;
+	client.setServiceUrl(dbURL);
+	    
+    return new Promise(function (resolve, reject) {
+        client.getDatabaseInformation({ 'db' : databaseName })
+        .then((dbInfo) => {
+            logger.info(method, 'Successfully connected to  trigger configuration database = ', dbInfo.result);
+            resolve(client);
+        })
+        .catch(err => {
+            logger.error(method, 'Failed to retrieve db info of  trigger configuration database with err = ', err);
+            reject(err);
         });
-    } else {
-        Promise.reject('nano provider did not get created.  check db URL: ' + dbHost);
-    }
+	});    
 }
 
 function createRedisClient() {
@@ -127,7 +137,7 @@ function createRedisClient() {
 // Initialize the Provider Server
 function init(server) {
     var method = 'init';
-    var nanoDb;
+    var cloudantDb;
     var providerManager;
 
     if (server !== null) {
@@ -140,11 +150,12 @@ function init(server) {
 
     verifyDatabase()
     .then(db => {
-        nanoDb = db;
+        cloudantDb = db;
         return createRedisClient();
     })
     .then(client => {
-        providerManager = new ProviderManager(logger, nanoDb, client);
+        logger.info(method,' Start alarms provider using the trigger config DB = '+ databaseName );
+        providerManager = new ProviderManager(logger, cloudantDb, client, databaseName);
         return providerManager.initRedis();
     })
     .then(() => {
@@ -185,7 +196,8 @@ function init(server) {
     })
     .catch(err => {
         logger.error(method, 'The following connection error occurred:', err);
-        process.exit(1);
+        /***** delayed exit to provide logdna sufficient time to get log info */
+        setTimeout(function () { process.exit(1); }, 500 ); 
     });
 
 }

@@ -25,27 +25,29 @@ var IntervalAlarm = require('./intervalAlarm.js');
 var Sanitizer = require('./sanitizer');
 var authHandler = require('./authHandler');
 
-module.exports = function (logger, triggerDB, redisClient) {
+module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
     var redisKeyPrefix = process.env.REDIS_KEY_PREFIX || triggerDB.config.db;
     var self = this;
 
-    this.triggers = {};
-    this.endpointAuth = process.env.ENDPOINT_AUTH;
-    this.routerHost = process.env.ROUTER_HOST || 'localhost';
-    this.worker = process.env.WORKER || 'worker0';
-    this.host = process.env.HOST_INDEX || 'host0';
-    this.hostPrefix = this.host.replace(/\d+$/, '');
-    this.activeHost = `${this.hostPrefix}0`; //default value on init (will be updated for existing redis)
-    this.db = triggerDB;
-    this.redisClient = redisClient;
-    this.redisKey = redisKeyPrefix + '_' + this.worker;
-    this.redisField = constants.REDIS_FIELD;
-    this.uriHost = 'https://' + this.routerHost;
-    this.sanitizer = new Sanitizer(logger, this);
-    this.monitoringAuth = process.env.MONITORING_AUTH;
-    this.monitorStatus = {};
-    this.retrying = {};
+    self.triggers = {};
+    self.endpointAuth = process.env.ENDPOINT_AUTH;
+    self.routerHost = process.env.ROUTER_HOST || 'localhost';
+    self.worker = process.env.WORKER || 'worker0';
+    self.host = process.env.HOST_INDEX || 'host0';
+    self.hostPrefix = this.host.replace(/\d+$/, '');
+    self.activeHost = `${this.hostPrefix}0`; //default value on init (will be updated for existing redis)
+    self.triggerDB = triggerDB;
+    self.redisClient = redisClient;
+    self.redisKey = redisKeyPrefix + '_' + this.worker;
+    self.redisField = constants.REDIS_FIELD;
+    self.uriHost = 'https://' + this.routerHost;
+    self.sanitizer = new Sanitizer(logger, this);
+    self.monitoringAuth = process.env.MONITORING_AUTH;
+    self.monitorStatus = {};
+    self.retrying = {};
+    self.databaseName = databaseName;
+
 
     function createTrigger(triggerIdentifier, newTrigger) {
         var method = 'createTrigger';
@@ -79,34 +81,43 @@ module.exports = function (logger, triggerDB, redisClient) {
         return alarm.scheduleAlarm(triggerIdentifier, callback);
     }
 
-    function disableTrigger(triggerIdentifier, statusCode, message) {
+
+    function disableTrigger(triggerIdentifier,  statusCode, message) {
         var method = 'disableTrigger';
 
-        triggerDB.get(triggerIdentifier, function (err, existing) {
-            if (!err) {
-                if (!existing.status || existing.status.active === true) {
-                    var updatedTrigger = existing;
-                    updatedTrigger.status = {
-                        'active': false,
-                        'dateChanged': Date.now(),
-                        'reason': {'kind': 'AUTO', 'statusCode': statusCode, 'message': message}
-                    };
-
-                    triggerDB.insert(updatedTrigger, triggerIdentifier, function (err) {
-                        if (err) {
-                            logger.error(method, triggerIdentifier, ': There was an error while disabling in database :', err);
-                        } else {
-                            logger.info(method, triggerIdentifier, ': Trigger successfully disabled in database');
-                        }
-                    });
-                }
-            } else {
-                logger.info(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
-                //make sure it is already stopped
-                stopTrigger(triggerIdentifier);
+        self.triggerDB.getDocument({
+            db: self.databaseName,
+            docId: triggerIdentifier
+        })
+        .then(response => {
+            var existingConfig = response.result;
+            if (!existingConfig.status || existingConfig.status.active === true) {
+                var updatedTriggerConfig = existingConfig;
+                updatedTriggerConfig.status = {
+                    'active': false,
+                    'dateChanged': Date.now(),
+                    'reason': {'kind': 'AUTO', 'statusCode': statusCode, 'message': message}
+                };
+                self.triggerDB.putDocument({
+                    db: self.databaseName,
+                    docId: triggerIdentifier,
+                    document: updatedTriggerConfig
+                }).then(response => {
+                    logger.info(method, triggerIdentifier, ': Trigger successfully disabled in database');
+                })
+                .catch( (err) => {
+                    logger.error(method, triggerIdentifier, ': There was an error while disabling in database :', err);
+                })
             }
-        });
-    }
+
+        })
+        .catch( (err) => {
+            logger.info(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
+            //make sure it is already stopped
+            stopTrigger(triggerIdentifier);
+                      
+        })
+   }
 
     function stopTrigger(triggerIdentifier) {
         var method = 'stopTrigger';
@@ -268,162 +279,201 @@ module.exports = function (logger, triggerDB, redisClient) {
     this.initAllTriggers = function () {
         var method = 'initAllTriggers';
 
-        //follow the trigger DB
         setupFollow('now');
 
-        logger.info(method, 'resetting system from last state');
-        triggerDB.view(constants.VIEWS_DESIGN_DOC, constants.TRIGGERS_BY_WORKER, {
-            reduce: false,
-            include_docs: true,
-            key: self.worker
-        }, function (err, body) {
-            if (!err) {
-                body.rows.forEach(function (trigger) {
-                    var triggerIdentifier = trigger.id;
-                    var doc = trigger.doc;
+        try{
+            logger.info(method, 'resetting system from last state');
+            //*********************************************************
+            //* Read currently existing trigger configs from DB and 
+            //* create a trigger for each 
+            //*********************************************************
+            self.triggerDB.postView({
+                db: self.databaseName,
+                ddoc : constants.VIEWS_DESIGN_DOC ,
+                view : constants.TRIGGERS_BY_WORKER,
+                reduce: false,
+                includeDocs: true,
+                key: self.worker
+            })
+            .then(response => {
 
-                    if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
-                        //check if trigger still exists in whisk db
-                        var namespace = doc.namespace;
-                        var name = doc.name;
-                        var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
-                        var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
+                if ( response.result) {
+                    var err = response.result.error; 
+                    var body = response.result.rows; 
 
-                        logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
-                        self.authRequest(doc, {
-                            method: 'get',
-                            uri: uri
-                        }, undefined,
-                        function (error, response, source ) {
-                        	
-                        	if (error && source == "auth_handling") {
-                              logger.error(method,  triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
-                            }
-                        	
-                            if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
-                                var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
-                                disableTrigger(triggerIdentifier, response.statusCode, message);
-                                logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
-                            } else {
-                                createTrigger(triggerIdentifier, doc)
-                                .then(cachedTrigger => {
-                                    self.triggers[triggerIdentifier] = cachedTrigger;
-                                    logger.info(method, triggerIdentifier, ': Created successfully');
-                                    if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
-                                        try {
-                                            fireTrigger(cachedTrigger);
-                                        } catch (e) {
-                                            logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
-                                        }
+
+                    if ( !err && body ) {
+                        body.forEach(function (triggerConfig) {
+                            var triggerIdentifier = triggerConfig.id;
+                            var doc = triggerConfig.doc;
+                            if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
+                                //check if trigger still exists in whisk db
+                                var namespace = doc.namespace;
+                                var name = doc.name;
+                                var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
+                                var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
+
+                                logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
+                                self.authRequest(doc, {
+                                    method: 'get',
+                                    uri: uri
+                                }, undefined,
+                                function (error, response, source ) {
+                                    
+                                    if (error && source == "auth_handling") {
+                                    logger.error(method,  triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
                                     }
-                                })
-                                .catch(err => {
-                                    var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
-                                    disableTrigger(triggerIdentifier, undefined, message);
-                                    logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
+                                    
+                                    if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
+                                        var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
+                                        disableTrigger(triggerIdentifier, response.statusCode, message);
+                                        logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
+                                    } else {
+                                        createTrigger(triggerIdentifier, doc)
+                                        .then(cachedTrigger => {
+                                            self.triggers[triggerIdentifier] = cachedTrigger;
+                                            logger.info(method, triggerIdentifier, ': Created successfully');
+                                            if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
+                                                try {
+                                                    fireTrigger(cachedTrigger);
+                                                } catch (e) {
+                                                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
+                                                }
+                                            }
+                                        })
+                                        .catch(err => {
+                                            var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
+                                            disableTrigger(triggerIdentifier, undefined, message);
+                                            logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
+                                        });
+                                    }
                                 });
                             }
-                        });
+                        })    
                     }
-                });
-            } else {
-                logger.error(method, ': Could not get latest state from database :', err);
-            }
-        });
+                    else {
+                        logger.error(method, ': Could not get latest state from database :', err);
+                    }
+                }
+                else {
+                    logger.error(method, 'Response from trigger configDB does not contain a result. Only  :', response );
+                }    
+            })
+            .catch( (err) => {
+                logger.error(method, "Failed to read  all trigger config info in configDB with  error : ",err);
+            })
+     
+        } catch (err) {
+            logger.error(method, ": Error in call command to provider configuration DB : " + err );
+        }
     };
 
+    //*********************************************************
+    //* setup follow is continuously receiving changes of the  
+    //* trigger configDB 
+    //* parm: seq - allows to define the start point of changes 
+    //*             to receive 
+    //*********************************************************
     function setupFollow(seq) {
         var method = 'setupFollow';
 
         try {
-            var feed = triggerDB.follow({
-                since: seq,
-                include_docs: true,
-                filter: constants.FILTERS_DESIGN_DOC + '/' + constants.TRIGGERS_BY_WORKER,
-                query_params: {worker: self.worker}
-            });
+            logger.info(method, "Next trigger configDB read sequence starts on : [", seq, "]");
 
-            feed.on('change', (change) => {
-                var triggerIdentifier = change.id;
-                var doc = change.doc;
-
-                logger.info(method, triggerIdentifier, ': Got change for trigger');
-
-                if (self.triggers[triggerIdentifier]) {
-                    if (doc.status && doc.status.active === false) {
-                        stopTrigger(triggerIdentifier);
-                        if (isMonitoringTrigger(doc.monitor, doc.name)) {
-                            self.monitorStatus.triggerStopped = "success";
-                        }
-                    }
-                } else {
-                    //ignore changes to disabled triggers
-                    if ((!doc.status || doc.status.active === true) && (!doc.monitor || doc.monitor === self.host)) {
-                        createTrigger(triggerIdentifier, doc)
-                        .then(cachedTrigger => {
-                            self.triggers[triggerIdentifier] = cachedTrigger;
-                            logger.info(method, triggerIdentifier, ': Created successfully');
-
-                            if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
-                                self.monitorStatus.triggerStarted = "success";
-                            }
-
-                            if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
-                                try {
-                                    fireTrigger(cachedTrigger);
-                                } catch (e) {
-                                    logger.error(method,triggerIdentifier, ': Exception occurred while firing trigger :',  e);
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            var message = 'Automatically disabled after receiving error on trigger creation: ' + err;
-                            disableTrigger(triggerIdentifier, undefined, message);
-                            logger.error(method,  triggerIdentifier,': Disabled trigger fail :', err);
-                        });
-                    }
+            //******************************************************************************
+            //* use longpoll feed to hold the socket to the trigger configDB open as long as 
+            //* possible to reduce HTTP session start/stop cycles . ( max timeout =  1 min)
+            //* It may be that one response contains multiple change recods !!! 
+            //******************************************************************************
+            self.triggerDB.postChanges({ "db" : self.databaseName , "feed" : "longpoll", "timeout" : 60000,  "since": seq , "includeDocs" : true })
+            .then(response => {
+                //********************************************************************
+                //* get the last_seq value to use in the next setupFollow() query 
+                //********************************************************************
+                var lastSeq = response.result.last_seq ; 
+                var numOfChangesDetected = Object.keys(response.result.results).length
+                logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
+               
+                for ( i = 0 ; i < numOfChangesDetected; i++ ) {
+                    logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
+                    changeHandler( response.result.results[i] ); 
                 }
-            });
-
-            feed.on('error', function (err) {
-                logger.error(method, ": Error while receiving DB changes from trigger configuration DB :" + err);
-            });
-            
-            feed.on('stop', function () {
-                logger.error(method, "Alarm provider stop change listening socket to alarm trigger configuration database");
-            });
-
-            feed.follow();
-            
-            //**********************************************************
-            //* additional feed listeners for logging purpose to get info 
-            //* about DB change listener socket to trigger config DB 
-            //***********************************************************
-            feed.on('confirm_request', function (req) {
-                logger.info(method, 'Alarm provider establish change listen socket to alarm trigger configuration database');
-            });
-            
-            feed.on('confirm', function () {
-                logger.info(method, 'Alarm provider starts listening for changes in alarm trigger configuration database');
-            });
-            
-            feed.on('timeout', function (info) {
-                logger.info(method, 'Got timeout while listening changes in alarm trigger configuration database:', JSON.stringify(info));
-            });
-            
-            feed.on('catchup', function (seq_id) {
-                logger.info(method, 'Changes sequences number adjusted to :', JSON.stringify(seq_id));
-            });
-            
-            feed.on('retry', function (info) {
-                logger.info(method, 'Follow lib retries to establish listening changes socket to alarm trigger configuration database:', JSON.stringify(info));
-            });
-            
-            
+                //** Continue to try to read from configDB immediately   
+                setupFollow(lastSeq);	
+                
+            })
+            .catch( (err) => {
+                logger.error(method, "Failed to read trigger config info in configDB with  error : ",err);
+               
+                //********************************************************************************
+                //* On temporary errors do a immediate retry
+                //* On hard errors (e.g coding errors) do a long term retry 
+                //********************************************************************************
+                var tempErrorCodes   = [ 408, 410, 429, 503, 504 ]; 
+                var retryDelay = 3000;  //** 3 seconds delay in case of hard errors 
+                
+                if ( tempErrorCodes.includes( err.code )) {
+                    retryDelay = 100; //** nearly immediate retry 
+                }	
+                //** Continue to try to read from configDB after a retry wait time  	
+                setTimeout( () => {setupFollow( 'now');}, retryDelay );	 
+                logger.error(method, ": Error while read on provider configuration DB : " + err , "will retry to read in ", retryDelay, " seconds");
+            })
         } catch (err) {
-            logger.error(method, ": Error while setting up change listener on provider configuration DB : " + err);
+            logger.error(method, ": Error in setting up change listener on provider configuration DB : " + err , "will retry to read in 3 seconds");
+            //** Continue to try to read from configDB after a retry wait time   
+            setTimeout( () => {setupFollow( 'now');}, 3000 );	
         }
     }
+
+    //***************************************************
+    //* react on the event that the trigger configuration
+	//* has changed in the trigger configDB 
+    //***************************************************
+    function changeHandler(change){
+        var method = 'changeHandler';
+
+        var triggerIdentifier = change.id;
+		var doc = change.doc;
+        var triggerDeleted = change.deleted;
+
+        if (self.triggers[triggerIdentifier]) {
+            if (doc.status && doc.status.active === false) {
+                stopTrigger(triggerIdentifier);
+                if (isMonitoringTrigger(doc.monitor, doc.name)) {
+                    self.monitorStatus.triggerStopped = "success";
+                }
+            }
+        } else {
+            //ignore changes to disabled or deleted triggers
+            if ( (!triggerDeleted == true ) && (!doc.status || doc.status.active === true) && (!doc.monitor || doc.monitor === self.host)) {
+                createTrigger(triggerIdentifier, doc)
+                .then(cachedTrigger => {
+                    self.triggers[triggerIdentifier] = cachedTrigger;
+                    logger.info(method, triggerIdentifier, ': Created successfully');
+
+                    if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
+                        self.monitorStatus.triggerStarted = "success";
+                    }
+
+                    if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
+                        try {
+                            fireTrigger(cachedTrigger);
+                        } catch (e) {
+                            logger.error(method,triggerIdentifier, ': Exception occurred while firing trigger :',  e);
+                        }
+                    }
+                })
+                .catch(err => {
+
+                    var message = 'Automatically disabled after receiving error on trigger creation: ' + err;
+                    disableTrigger(triggerIdentifier, undefined, message);
+                    logger.error(method,  triggerIdentifier,': Disabled trigger fail :', err);
+                });
+            }
+        }
+	};
+
 
     this.authorize = function (req, res, next) {
         var method = 'authorize';
@@ -548,7 +598,7 @@ module.exports = function (logger, triggerDB, redisClient) {
                 	  reject(err);
                 });
             } else {
-            	logger.info(method, 'Running cloudant provider worker without redis connection (test mode) ');
+            	logger.info(method, 'Running alarm provider worker without redis connection (test mode) ');
             	resolve();
             }
         });
