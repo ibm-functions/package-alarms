@@ -28,18 +28,23 @@ module.exports = function (logger, manager) {
             docId: triggerID
         })
         .then(response => {
+
+            var rev = response.result._rev; 
             //**************************************************************
             //* if trigger still exist in DB , then remove 
             //**************************************************************    
             manager.triggerDB.deleteDocument({
                 db: manager.databaseName,
-                docId: triggerID
+                docId: triggerID,
+                rev: rev
             })
             .then(response => {
+
                 logger.info(method, triggerID, ': Trigger was successfully deleted from the provider configuration database');
             })
             .catch( (err) => {
-                if (err.code === 409 && retryCount < 5) {
+                logger.error(method, triggerID, ": delete trigger confing from DB with err.code = ", err.code) ;
+                if (err.code == 409 && retryCount < 5) {
                     logger.error(method, triggerID, ": There was an error deleting the trigger from the trigger configuration database with error code = 409, so will retry ");
                     setTimeout(function () {
                         self.deleteTriggerFromDB(triggerID, (retryCount + 1));
