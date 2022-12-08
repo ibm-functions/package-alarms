@@ -8,7 +8,7 @@
     "cron": "1.8.2",
     "express": "^4.13.4",
     "lodash": "^4.17.13",
-    "nano": "6.4.4",
+    "nano": "^10.0.0",
     "needle": "^3.1.0",
     "winston": "^2.1.1",
     "moment": "^2.12.0",
@@ -18,6 +18,8 @@
     "bluebird": "^3.5.0",
     "systeminformation": "^5.3.1",
     "long-timeout": "^0.1.1",
-    "@ibm-functions/iam-token-manager": "1.0.11"
+    "@ibm-functions/iam-token-manager": "1.0.11",
+    "@ibm-cloud/cloudant": "0.3.0",
+    "ibm-cloud-sdk-core" : "^3.2"
   }
 }

@@ -22,26 +22,41 @@ module.exports = function (logger, manager) {
     this.deleteTriggerFromDB = function (triggerID, retryCount) {
         var method = 'deleteTriggerFromDB';
 
-        //delete from database
-        manager.db.get(triggerID, function (err, existing) {
-            if (!err) {
-                manager.db.destroy(existing._id, existing._rev, function (err) {
-                    if (err) {
-                        if (err.statusCode === 409 && retryCount < 5) {
-                            setTimeout(function () {
-                                self.deleteTriggerFromDB(triggerID, (retryCount + 1));
-                            }, 1000);
-                        } else {
-                            logger.error(method, triggerID, ': There was an error deleting the trigger from the provider configuration database :', err);
-                        }
-                    } else {
-                        logger.info(method, triggerID, ': Trigger was successfully deleted from the provider configuration database');
-                    }
-                });
-            } else {
-                logger.error(method, triggerID, ': Could not find the trigger in the database :', err);
-            }
-        });
+        //delete from trigger config database 
+       manager.triggerDB.getDocument({
+            db: manager.databaseName,
+            docId: triggerID
+        })
+        .then(response => {
+
+            var rev = response.result._rev; 
+            //**************************************************************
+            //* if trigger still exist in DB , then remove 
+            //**************************************************************    
+            manager.triggerDB.deleteDocument({
+                db: manager.databaseName,
+                docId: triggerID,
+                rev: rev
+            })
+            .then(response => {
+
+                logger.info(method, triggerID, ': Trigger was successfully deleted from the provider configuration database');
+            })
+            .catch( (err) => {
+                logger.error(method, triggerID, ": delete trigger confing from DB with err.code = ", err.code) ;
+                if (err.code == 409 && retryCount < 5) {
+                    logger.error(method, triggerID, ": There was an error deleting the trigger from the trigger configuration database with error code = 409, so will retry ");
+                    setTimeout(function () {
+                        self.deleteTriggerFromDB(triggerID, (retryCount + 1));
+                    }, 1000);
+                } else {
+                    logger.error(method, triggerID, ': There was an error deleting the trigger from the trigger configuration database :', err , " and retry count = ", retryCount) ;
+                }
+            })
+        })
+        .catch( (err) => {
+            logger.error(method, triggerID, ': Could not find the trigger in the database while sanitzer try to delete trigger :', err);
+        })
     };
 
     this.deleteTriggerAndRules = function (triggerData) {
@@ -166,26 +181,33 @@ module.exports = function (logger, manager) {
         var method = 'deleteTriggerFeed';
 
         return new Promise(function (resolve, reject) {
-            manager.db.get(triggerID, function (err, existing) {
-                if (!err) {
-                    var updatedTrigger = existing;
-                    updatedTrigger.status = {
-                        'active': false,
-                        'dateChanged': Date.now(),
-                        'reason': {'kind': 'AUTO', 'statusCode': undefined, 'message': `Marked for deletion`}
-                    };
 
-                    manager.db.insert(updatedTrigger, triggerID, function (err) {
-                        if (err) {
-                            reject('in subcall updateTrigger', err);
-                        } else {
-                            resolve(triggerID);
-                        }
-                    });
-                } else {
-                    reject( 'in subcall getTrigger',err);
-                }
-            });
+            manager.triggerDB.getDocument({
+                db: manager.databaseName,
+                docId: triggerID
+            })
+            .then(response => {
+                var updatedTriggerConfig = response.result;
+                updatedTriggerConfig.status = {
+                    'active': false,
+                    'dateChanged': Date.now(),
+                    'reason': {'kind': 'AUTO', 'statusCode': undefined, 'message': `Marked for deletion`}
+                };
+
+                self.triggerDB.putDocument({
+                    db: self.databaseName,
+                    docId: triggerID,
+                    document: updatedTriggerConfig
+                }).then(response => {
+                    resolve(triggerID);
+                })
+                .catch( (err) => {
+                    reject('in subcall updateTrigger', err);
+                })
+            })
+            .catch( (err) => {
+                reject( 'in subcall getTrigger',err);
+            })
         })
         .then(triggerID => {
             self.deleteTriggerFromDB(triggerID, 0);
@@ -193,7 +215,6 @@ module.exports = function (logger, manager) {
         .catch(err => {
             logger.error(method, triggerID, ': An error occurred while deleting the trigger feed :', err);
         });
-
     };
 
 };
