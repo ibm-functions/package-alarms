@@ -196,7 +196,7 @@ function init(server) {
     })
     .catch(err => {
         logger.error(method, 'The following connection error occurred:', err);
-        /***** delayed exit to provide logdna sufficient time to get log info */
+        //***** delayed exit 
         setTimeout(function () { process.exit(1); }, 500 ); 
     });
 
