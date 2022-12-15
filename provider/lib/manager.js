@@ -387,20 +387,25 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             //******************************************************************************
             self.triggerDB.postChanges({ "db" : self.databaseName , "feed" : "longpoll", "timeout" : 60000,  "since": seq , "includeDocs" : true })
             .then(response => {
-                //********************************************************************
-                //* get the last_seq value to use in the next setupFollow() query 
-                //********************************************************************
-                var lastSeq = response.result.last_seq ; 
-                var numOfChangesDetected = Object.keys(response.result.results).length
-                logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
+                try {
+                    //********************************************************************
+                    //* get the last_seq value to use in the next setupFollow() query 
+                    //********************************************************************
+                    var lastSeq = response.result.last_seq ; 
+                    var numOfChangesDetected = Object.keys(response.result.results).length
+                    logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
                
-                for ( i = 0 ; i < numOfChangesDetected; i++ ) {
-                    logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
-                    changeHandler( response.result.results[i] ); 
-                }
-                //** Continue to try to read from configDB immediately   
-                setupFollow(lastSeq);	
-                
+                    for ( i = 0 ; i < numOfChangesDetected; i++ ) {
+                        logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
+                        changeHandler( response.result.results[i] ); 
+                    }
+                    //** Continue to try to read from configDB immediately   
+                    setupFollow(lastSeq);
+                } catch (err) {
+                    logger.error(method, ": processing postChanges() result run in exception. Response obj content was [ " + response , " ] and err =  ", err);
+                    //** Continue to try to read from configDB immediatels 
+                    setupFollow('now');
+                } 
             })
             .catch( (err) => {
                 logger.error(method, "Failed to read trigger config info in configDB with  error : ",err);
