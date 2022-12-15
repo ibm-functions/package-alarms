@@ -399,12 +399,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
                         changeHandler( response.result.results[i] ); 
                     }
-                    //** Continue to try to read from configDB immediately   
+                    //** Continue to try to read from configDB immediately wiith next seq_nr 
                     setupFollow(lastSeq);
                 } catch (err) {
                     logger.error(method, ": processing postChanges() result run in exception. Response obj content was [ " + response , " ] and err =  ", err);
-                    //** Continue to try to read from configDB immediatels 
-                    setupFollow('now');
+                    //** Continue to try to read from configDB immediately again with initial seq_nr  
+                    setupFollow(seq);
                 } 
             })
             .catch( (err) => {
@@ -420,14 +420,14 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( tempErrorCodes.includes( err.code )) {
                     retryDelay = 100; //** nearly immediate retry 
                 }	
-                //** Continue to try to read from configDB after a retry wait time  	
-                setTimeout( () => {setupFollow( 'now');}, retryDelay );	 
+                //** Continue to try to read from configDB after a retry wait time  with initial seq_nr  	
+                setTimeout( () => {setupFollow( seq );}, retryDelay );	 
                 logger.error(method, ": Error while read on provider configuration DB : " + err , "will retry to read in ", retryDelay, " seconds");
             })
         } catch (err) {
             logger.error(method, ": Error in setting up change listener on provider configuration DB : " + err , "will retry to read in 3 seconds");
-            //** Continue to try to read from configDB after a retry wait time   
-            setTimeout( () => {setupFollow( 'now');}, 3000 );	
+            //** Continue to try to read from configDB after a retry wait time  with initial seq_nr   
+            setTimeout( () => {setupFollow( seq );}, 1000 );	
         }
     }
 
