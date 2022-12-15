@@ -387,20 +387,25 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             //******************************************************************************
             self.triggerDB.postChanges({ "db" : self.databaseName , "feed" : "longpoll", "timeout" : 60000,  "since": seq , "includeDocs" : true })
             .then(response => {
-                //********************************************************************
-                //* get the last_seq value to use in the next setupFollow() query 
-                //********************************************************************
-                var lastSeq = response.result.last_seq ; 
-                var numOfChangesDetected = Object.keys(response.result.results).length
-                logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
+                try {
+                    //********************************************************************
+                    //* get the last_seq value to use in the next setupFollow() query 
+                    //********************************************************************
+                    var lastSeq = response.result.last_seq ; 
+                    var numOfChangesDetected = Object.keys(response.result.results).length
+                    logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
                
-                for ( i = 0 ; i < numOfChangesDetected; i++ ) {
-                    logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
-                    changeHandler( response.result.results[i] ); 
-                }
-                //** Continue to try to read from configDB immediately   
-                setupFollow(lastSeq);	
-                
+                    for ( i = 0 ; i < numOfChangesDetected; i++ ) {
+                        logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
+                        changeHandler( response.result.results[i] ); 
+                    }
+                    //** Continue to try to read from configDB immediately wiith next seq_nr 
+                    setupFollow(lastSeq);
+                } catch (err) {
+                    logger.error(method, ": processing postChanges() result run in exception. Response obj content was [ " + response , " ] and err =  ", err);
+                    //** Continue to try to read from configDB immediately again with initial seq_nr  
+                    setupFollow(seq);
+                } 
             })
             .catch( (err) => {
                 logger.error(method, "Failed to read trigger config info in configDB with  error : ",err);
@@ -415,14 +420,14 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( tempErrorCodes.includes( err.code )) {
                     retryDelay = 100; //** nearly immediate retry 
                 }	
-                //** Continue to try to read from configDB after a retry wait time  	
-                setTimeout( () => {setupFollow( 'now');}, retryDelay );	 
+                //** Continue to try to read from configDB after a retry wait time  with initial seq_nr  	
+                setTimeout( () => {setupFollow( seq );}, retryDelay );	 
                 logger.error(method, ": Error while read on provider configuration DB : " + err , "will retry to read in ", retryDelay, " seconds");
             })
         } catch (err) {
             logger.error(method, ": Error in setting up change listener on provider configuration DB : " + err , "will retry to read in 3 seconds");
-            //** Continue to try to read from configDB after a retry wait time   
-            setTimeout( () => {setupFollow( 'now');}, 3000 );	
+            //** Continue to try to read from configDB after a retry wait time  with initial seq_nr   
+            setTimeout( () => {setupFollow( seq );}, 1000 );	
         }
     }
 
