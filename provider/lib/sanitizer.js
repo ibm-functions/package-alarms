@@ -55,7 +55,11 @@ module.exports = function (logger, manager) {
             })
         })
         .catch( (err) => {
-            logger.error(method, triggerID, ': Could not find the trigger in the database while sanitzer try to delete trigger :', err);
+            if ( err && err.code == 404) {
+                logger.warn(method,triggerIdentifier, ': trigger to delete does not exist in trigger config DB at this time. ');  
+            } else {
+                logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
+            }
         })
     };
 
@@ -136,14 +140,14 @@ module.exports = function (logger, manager) {
                                 resolve(info);
                             })
                             .catch(err => {
-                                reject( 'retry of deleteTrigger ', triggerIdentifier,  ' failed with ', err);
+                                reject( 'retry of deleteTrigger '+ triggerIdentifier + ' failed with ' + err);
                             });
                         }, 1000);
                     } else {
-                        reject('trigger ', triggerIdentifier,  'delete request failed');
+                        reject('trigger ' + triggerIdentifier + ' delete request failed');
                     }
                 } else {
-                    resolve('trigger ', triggerIdentifier, 'delete request was successful');
+                    resolve('trigger ' +  triggerIdentifier + ' delete request was successful');
                 }
             });
         });
@@ -194,19 +198,23 @@ module.exports = function (logger, manager) {
                     'reason': {'kind': 'AUTO', 'statusCode': undefined, 'message': `Marked for deletion`}
                 };
 
-                self.triggerDB.putDocument({
-                    db: self.databaseName,
+                manager.triggerDB.putDocument({
+                    db: manager.databaseName,
                     docId: triggerID,
                     document: updatedTriggerConfig
                 }).then(response => {
                     resolve(triggerID);
                 })
                 .catch( (err) => {
-                    reject('in subcall updateTrigger', err);
+                    reject('in subcall updateTrigger in configDB with err = ' + err);
                 })
             })
             .catch( (err) => {
-                reject( 'in subcall getTrigger',err);
+                if ( err && err.code == 404) {
+                    resolve( 'in subcall getTrigger : Trigger to delete in configDB does not exist anymore ');  
+                } else {
+                    reject( ' in subcall getTrigger, err = ' + err);
+                }
             })
         })
         .then(triggerID => {

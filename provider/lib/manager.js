@@ -112,10 +112,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
         })
         .catch( (err) => {
-            logger.info(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
-            //make sure it is already stopped
+            if ( err && err.code == 404) {
+                logger.warn(method,triggerIdentifier, ': Could not find trigger in database anymore');  
+            } else {
+                logger.warn(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
+            }
+                //make sure it is already stopped
             stopTrigger(triggerIdentifier);
-                      
         })
    }
 
@@ -396,7 +399,16 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
                
                     for ( i = 0 ; i < numOfChangesDetected; i++ ) {
-                        logger.info(method,  "call change Handler with " ,  response.result.results[i]);     
+                        //***********************************************************************
+                        //* Do not write logs for changes received for  monitoring self-test triggers 
+                        //* assigned to other worker host. 
+                        //***********************************************************************
+                        var changedDoc = response.result.results[i].doc; 
+                        if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
+                            logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
+                        }else{
+                            logger.info(method,  "call change Handler with : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
+                        }
                         changeHandler( response.result.results[i] ); 
                     }
                     //** Continue to try to read from configDB immediately wiith next seq_nr 
