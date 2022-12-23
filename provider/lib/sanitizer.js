@@ -55,7 +55,12 @@ module.exports = function (logger, manager) {
             })
         })
         .catch( (err) => {
-            if ( err && err.code == 404) {
+            if ( err && err.code == 408 && retryCount < 5) {
+                logger.error(method, triggerID, ": There was a timeout in getDocument() to identify trigger for deletion from the trigger configuration database, so will retry ");
+                setTimeout(function () {
+                    self.deleteTriggerFromDB(triggerID, (retryCount + 1));
+                }, 1000);
+            } else if ( err && err.code == 404) {
                 logger.warn(method,triggerIdentifier, ': trigger to delete does not exist in trigger config DB at this time. ');  
             } else {
                 logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
@@ -181,7 +186,7 @@ module.exports = function (logger, manager) {
         });
     };
 
-    this.deleteTriggerFeed = function (triggerID) {
+    this.deleteTriggerFeed = function (triggerID , inRetry ) {
         var method = 'deleteTriggerFeed';
 
         return new Promise(function (resolve, reject) {
@@ -221,7 +226,19 @@ module.exports = function (logger, manager) {
             self.deleteTriggerFromDB(triggerID, 0);
         })
         .catch(err => {
-            logger.error(method, triggerID, ': An error occurred while deleting the trigger feed :', err);
+            //***************************************************************************************
+            //* Do a one time retry in case of timeout 
+            //***************************************************************************************
+            if ( err && err.code == 408 &&  inRetry == undefined ) {
+                logger.error(method, triggerID, ": There was a timeout in getDocument() to identify trigger for deletion from the trigger configuration database, so will retry ");
+                setTimeout(function () {
+                    self.deleteTriggerFeed(triggerID, "inRetry");
+                }, 1000);
+            } else if ( err && err.code == 404) {
+                logger.warn(method,triggerIdentifier, ': trigger to delete does not exist in trigger config DB at this time. ');  
+            } else {
+                logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
+            }
         });
     };
 

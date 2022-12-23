@@ -54,9 +54,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
         var callback = function onTick() {
             var triggerHandle = self.triggers[triggerIdentifier];
+            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
             if (triggerHandle && shouldFireTrigger(triggerHandle) && hasTriggersRemaining(triggerHandle)) {
                 try {
-                    fireTrigger(triggerHandle);
+                    fireTrigger(triggerHandle, alarm_instance_id);
                 } catch (e) {
                     logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
                 }
@@ -82,7 +83,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     }
 
 
-    function disableTrigger(triggerIdentifier,  statusCode, message) {
+    function disableTrigger(triggerIdentifier,  statusCode, message , inRetry) {
         var method = 'disableTrigger';
 
         self.triggerDB.getDocument({
@@ -112,7 +113,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
         })
         .catch( (err) => {
-            if ( err && err.code == 404) {
+            //***************************************************************************************
+            //* Do a one time retry in case of timeout 
+            //***************************************************************************************
+            if ( err && err.code == 408 && inRetry == undefined ) {
+                logger.info(method,triggerIdentifier, ': timeout in getDocument() call, do a retry'); 
+                disableTrigger(triggerIdentifier,  statusCode, message , "inRetry");                 
+            } else if ( err && err.code == 404) {
                 logger.warn(method,triggerIdentifier, ': Could not find trigger in database anymore');  
             } else {
                 logger.warn(method,triggerIdentifier, ': Could not find trigger in database : '+ err);
@@ -136,32 +143,37 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         }
     }
 
-    function fireTrigger(triggerData) {
+    function fireTrigger(triggerData, alarm_instance_id) {
         var method = 'fireTrigger';
 
         var triggerIdentifier = triggerData.triggerID;
 
-        logger.info(method, triggerIdentifier, ': Alarm trigger ready to fire' );
-        postTrigger(triggerData, 0)
+        logger.info(method, triggerIdentifier, ': Alarm trigger for alarm_instance_id = ',alarm_instance_id, ' ready to fire' );
+        postTrigger(triggerData, alarm_instance_id, 0)
         .then(triggerId => {
-            logger.info(method, triggerId,  ': Trigger was successfully fired');
+            logger.info(method, triggerId,  ': Trigger was successfully fired for alarm_instance_id = ',alarm_instance_id);
             handleFiredTrigger(triggerData);
         })
         .catch(err => {
-            logger.error(method,  triggerIdentifier, ": Failed posting a trigger :" + err);
+            logger.error(method,  triggerIdentifier, ": Failed posting a trigger for alarm_instance_id = ",alarm_instance_id,  " with err =", err);
             handleFiredTrigger(triggerData);
         });
     }
 
-    function postTrigger(triggerData, retryCount, throttleCount) {
+    function postTrigger(triggerData, alarm_instance_id,  retryCount, throttleCount) {
         var method = 'postTrigger';
         var isIAMNamespace = triggerData.additionalData && triggerData.additionalData.iamApikey;
         var triggerIdentifier = triggerData.triggerID;
 
-        if (retryCount > 0 && !self.retrying[triggerIdentifier]) {
+        //***********************************************************************
+        //* Old code necessary while the retrying was based on self.retrying[triggerIdentifier]
+        //* Not sure is still necessary as breaking of recursion. Need further testing. 
+        //* BUT not it provides a promise.resolve() , not as previous a  promise.reject()
+        //******************************************************************************
+        if (retryCount > 0 && !self.retrying[alarm_instance_id]) {
             // this is a retry of a previously failed trigger which was
             // successfully triggered in the meantime, thus we should abort.
-            return Promise.reject(`Aborting retry ${retryCount} for trigger post, has been fired successfully`);
+            return Promise.resolve(`Aborting retry ${retryCount} for trigger post, has been fired successfully`);
         }
 
         return new Promise(function (resolve, reject) {
@@ -210,15 +222,15 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         } else {
                             // only start a retry loop once (when self.retrying is unset).
                             // retryCount > 0 means this already is a retry so we can continue
-                            if (retryCount < constants.RETRY_ATTEMPTS && (!self.retrying[triggerIdentifier] || retryCount > 0)) {
+                            if (retryCount < constants.RETRY_ATTEMPTS && (!self.retrying[alarm_instance_id] || retryCount > 0)) {
                                 if (retryCount === 0) {
-                                    self.retrying[triggerIdentifier] = true;
+                                    self.retrying[alarm_instance_id] = true;
                                 }
                                 throttleCounter = statusCode === HttpStatus.TOO_MANY_REQUESTS ? throttleCounter + 1 : throttleCounter;
                                 const retryDelay = Math.max(constants.RETRY_DELAY, 1000 * Math.pow(throttleCounter, 2));
                                 logger.info(method,  triggerIdentifier, ': Attempt to fire trigger again in ', retryDelay, 'ms, retry count:', (retryCount + 1));
                                 setTimeout(function () {
-                                    postTrigger(triggerData, (retryCount + 1), throttleCounter)
+                                    postTrigger(triggerData, alarm_instance_id, (retryCount + 1), throttleCounter)
                                     .then(triggerId => {
                                         resolve(triggerId);
                                     })
@@ -231,21 +243,21 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                     var msg = 'Automatically disabled after continuously receiving a 429 status code when firing the trigger';
                                     disableTrigger(triggerIdentifier, 429, msg);
                                     reject('Disabled trigger ' + triggerIdentifier + ' due to status code: 429');
-                                } else if (retryCount === 0 && self.retrying[triggerIdentifier]) {
+                                } else if (retryCount === 0 && self.retrying[alarm_instance_id]) {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier + ', another retry currently in progress');
                                 } else {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier);
-                                    self.retrying[triggerIdentifier] = false;
+                                    self.retrying[alarm_instance_id] = false;
                                 }
                             }
                         }
                     } else {
-                        self.retrying[triggerIdentifier] = false;
-                        logger.info(method, triggerIdentifier, ': Fired trigger request,', 'Status Code:', statusCode);
+                        self.retrying[alarm_instance_id] = false;
+                        logger.info(method, triggerIdentifier, ': Fired trigger request for alarm_instance_id = ',alarm_instance_id, 'Status Code:', statusCode);
                         resolve(triggerIdentifier);
                     }
                 } catch (err) {
-                	self.retrying[triggerIdentifier] = false;
+                	self.retrying[alarm_instance_id] = false;
                     reject('Exception occurred while firing trigger : ' + err);
                 }
             });
@@ -338,7 +350,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                             logger.info(method, triggerIdentifier, ': Created successfully');
                                             if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
                                                 try {
-                                                    fireTrigger(cachedTrigger);
+                                                    var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
+                                                    fireTrigger(cachedTrigger, alarm_instance_id);
                                                 } catch (e) {
                                                     logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
                                                 }
@@ -377,70 +390,83 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     //* parm: seq - allows to define the start point of changes 
     //*             to receive 
     //*********************************************************
-    function setupFollow(seq) {
+    async function setupFollow(seq) {
         var method = 'setupFollow';
+        var postChangesTimeout = 60000; 
+        var wrapperTimeout = postChangesTimeout + 1000; 
 
-        try {
-            logger.info(method, "Next trigger configDB read sequence starts on : [", seq, "]");
-
-            //******************************************************************************
+        //********************************************************************************************
+		//* wrapper function to ensure that the postChanges() call from the @ibm-cloud/cloudant sdk 
+		//* module will not wait forever on connecting to DB and try to get changes. 
+		//* HINT: The wrapper is necessary because it was detected that the postChanges did not 
+		//*       issue resolve() or reject()  in any cases. So it seems to hang forever 
+		//********************************************************************************************
+		var wrappingPostChanges = () => new Promise( (resolve, reject) => {
+			var  error = false; 
+            //*******************************************************************************************
+			//* setup a timeout value that is little bigger then the postChanges() timeout e.g + 1 sec 
+			//* if this timeout reached send the STRING "WRAPPER_TIMEOUT" as err info
+			//*******************************************************************************************
+			setTimeout( function(){ reject( "WRAPPER_TIMEOUT" ) }, wrapperTimeout); 
+			
+			//******************************************************************************
             //* use longpoll feed to hold the socket to the trigger configDB open as long as 
             //* possible to reduce HTTP session start/stop cycles . ( max timeout =  1 min)
             //* It may be that one response contains multiple change recods !!! 
             //******************************************************************************
-            self.triggerDB.postChanges({ "db" : self.databaseName , "feed" : "longpoll", "timeout" : 60000,  "since": seq , "includeDocs" : true })
-            .then(response => {
-                try {
-                    //********************************************************************
-                    //* get the last_seq value to use in the next setupFollow() query 
-                    //********************************************************************
-                    var lastSeq = response.result.last_seq ; 
-                    var numOfChangesDetected = Object.keys(response.result.results).length
-                    logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
-               
-                    for ( i = 0 ; i < numOfChangesDetected; i++ ) {
-                        //***********************************************************************
-                        //* Do not write logs for changes received for  monitoring self-test triggers 
-                        //* assigned to other worker host. 
-                        //***********************************************************************
-                        var changedDoc = response.result.results[i].doc; 
-                        if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
-                            logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
-                        }else{
-                            logger.info(method,  "call change Handler with : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
-                        }
-                        changeHandler( response.result.results[i] ); 
-                    }
-                    //** Continue to try to read from configDB immediately wiith next seq_nr 
-                    setupFollow(lastSeq);
-                } catch (err) {
-                    logger.error(method, ": processing postChanges() result run in exception. Response obj content was [ " + response , " ] and err =  ", err);
-                    //** Continue to try to read from configDB immediately again with initial seq_nr  
-                    setupFollow(seq);
-                } 
-            })
-            .catch( (err) => {
-                logger.error(method, "Failed to read trigger config info in configDB with  error : ",err);
-               
-                //********************************************************************************
-                //* On temporary errors do a immediate retry
-                //* On hard errors (e.g coding errors) do a long term retry 
-                //********************************************************************************
-                var tempErrorCodes   = [ 408, 410, 429, 503, 504 ]; 
-                var retryDelay = 3000;  //** 3 seconds delay in case of hard errors 
+            self.triggerDB.postChanges({ "db" : self.databaseName , "feed" : "longpoll", "timeout" : postChangesTimeout,  "since": seq , "includeDocs" : true })
+         	.then( response => {
+				if(!error) {
+					resolve(response);
+				} 		
+		    })
+			.catch ( err  => {
+				reject(err); 
+			})			
+		});
+
+        while ( true ) {
+            try {
+                logger.info(method, "Next trigger configDB read sequence starts on : [", seq, "]");
                 
-                if ( tempErrorCodes.includes( err.code )) {
-                    retryDelay = 100; //** nearly immediate retry 
-                }	
-                //** Continue to try to read from configDB after a retry wait time  with initial seq_nr  	
-                setTimeout( () => {setupFollow( seq );}, retryDelay );	 
-                logger.error(method, ": Error while read on provider configuration DB : " + err , "will retry to read in ", retryDelay, " seconds");
-            })
-        } catch (err) {
-            logger.error(method, ": Error in setting up change listener on provider configuration DB : " + err , "will retry to read in 3 seconds");
-            //** Continue to try to read from configDB after a retry wait time  with initial seq_nr   
-            setTimeout( () => {setupFollow( seq );}, 1000 );	
-        }
+                let response = await wrappingPostChanges();	
+                //********************************************************************
+                //* get the last_seq value to use in the next setupFollow() query 
+                //* if not part of response, then let it thrown an exception to end in 
+                //* the catch() to ensure that loop continues. 
+                //********************************************************************
+                var lastSeq = response.result.last_seq ; 
+                var numOfChangesDetected = Object.keys(response.result.results).length
+                logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
+        
+                for ( i = 0 ; i < numOfChangesDetected; i++ ) {
+                    //***********************************************************************
+                    //* Do not write logs for changes received for  monitoring self-test triggers 
+                    //* assigned to other worker host. 
+                    //***********************************************************************
+                    var changedDoc = response.result.results[i].doc; 
+                    if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
+                        logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
+                    }else{
+                        logger.info(method,  "call change Handler with : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
+                    }
+                    changeHandler( response.result.results[i] ); 
+                    seq = lastSeq;
+                }
+            } catch (err) {
+                 //*****************************************************
+                //* handle how to proceed loop in case of WRAPPER_TIMEOUT
+				//*******************************************************
+				if ( "WRAPPER_TIMEOUT" == err ) {
+                    logger.warn(method, ": processing postChanges() did not end in its own timeout. Wrapper timeout ended the postChanges() call. postChanges() Loop continuing ...");
+                    seq = seq ;   //** run postChanges call with the same start value again 
+				} else {
+			        logger.error(method, ": Error while read on provider configuration DB : " + err , ". postChanges() Loop continuing ...");
+                    seq = seq ; 
+                } 
+            }
+        } // end of endless while loop 	
+
     }
 
     //***************************************************
@@ -475,7 +501,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
                     if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
                         try {
-                            fireTrigger(cachedTrigger);
+                            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
+                            fireTrigger(cachedTrigger,alarm_instance_id);
                         } catch (e) {
                             logger.error(method,triggerIdentifier, ': Exception occurred while firing trigger :',  e);
                         }
