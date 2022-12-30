@@ -430,11 +430,17 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 logger.info(method, "Next trigger configDB read sequence starts on : [", seq, "]");
                 
                 let response = await wrappingPostChanges();	
+                //For Testing Scenario 1: 
+                response =  new Object();
                 //********************************************************************
                 //* get the last_seq value to use in the next setupFollow() query 
                 //* if not part of response, then let it thrown an exception to end in 
                 //* the catch() to ensure that loop continues. 
                 //********************************************************************
+                if ( Object.keys(response).length === 0  ) {
+                    logger.error(method, " : Cloudant-SDK provided an unexpected empty response object on postChanges() call.");
+                }
+               
                 var lastSeq = response.result.last_seq ; 
                 var numOfChangesDetected = Object.keys(response.result.results).length
                 logger.info(method,  numOfChangesDetected + " changes records received from configDB with last seq : ", lastSeq);
