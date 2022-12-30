@@ -395,9 +395,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         var postChangesTimeout = 60000; 
         var wrapperTimeout = postChangesTimeout + 1000; 
  
-        //***** For testing  Scenario 2: 
-        var wrapperTimeout = postChangesTimeout - 30000; 
-        
         //********************************************************************************************
 		//* wrapper function to ensure that the postChanges() call from the @ibm-cloud/cloudant sdk 
 		//* module will not wait forever on connecting to DB and try to get changes. 
@@ -455,7 +452,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
                         logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
                     }else{
-                        logger.info(method,  "call change Handler with : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
+
+                        if ( response.result.results[i].deleted == true) {
+                            logger.info(method,  "call change Handler on deleted doc with  doc_id = ", changedDoc._id, changedDoc._rev );    
+                        }else {
+                            logger.info(method,  "call change Handler with for doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);    
+                        } 
                     }
                     changeHandler( response.result.results[i] ); 
                     seq = lastSeq;

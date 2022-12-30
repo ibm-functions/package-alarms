@@ -61,7 +61,7 @@ module.exports = function (logger, manager) {
                     self.deleteTriggerFromDB(triggerID, (retryCount + 1));
                 }, 1000);
             } else if ( err && err.code == 404) {
-                logger.warn(method,triggerIdentifier, ': trigger to delete does not exist in trigger config DB at this time. ');  
+                logger.warn(method,triggerID, ': trigger to delete does not exist in trigger config DB at this time. ');  
             } else {
                 logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
             }
