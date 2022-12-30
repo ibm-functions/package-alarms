@@ -394,7 +394,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         var method = 'setupFollow';
         var postChangesTimeout = 60000; 
         var wrapperTimeout = postChangesTimeout + 1000; 
-
+ 
+        //***** For testing  Scenario 2: 
+        var wrapperTimeout = postChangesTimeout - 30000; 
+        
         //********************************************************************************************
 		//* wrapper function to ensure that the postChanges() call from the @ibm-cloud/cloudant sdk 
 		//* module will not wait forever on connecting to DB and try to get changes. 
@@ -430,10 +433,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 logger.info(method, "Next trigger configDB read sequence starts on : [", seq, "]");
                 
                 let response = await wrappingPostChanges();	
-                //For Testing Scenario 1: 
-                if( seq != "now" ) {
-                    response =  new Object();
-                }   
                 //********************************************************************
                 //* get the last_seq value to use in the next setupFollow() query 
                 //* if not part of response, then let it thrown an exception to end in 
