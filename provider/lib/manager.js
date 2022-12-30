@@ -449,7 +449,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     //* assigned to other worker host. 
                     //***********************************************************************
                     var changedDoc = response.result.results[i].doc; 
-                    if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
+
+                    //** for Testing Scenario 5.  change the if statement  
+                    if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor == self.host ){
+                   // if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
                         logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
                     }else{
 
@@ -457,9 +460,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             logger.info(method,  "call change Handler on deleted doc with  doc_id = ", changedDoc._id, changedDoc._rev );    
                         }else {
                             logger.info(method,  "call change Handler with for doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);    
-                        } 
+                        }
+                        changeHandler( response.result.results[i] ); 
                     }
-                    changeHandler( response.result.results[i] ); 
                     seq = lastSeq;
                 }
             } catch (err) {
