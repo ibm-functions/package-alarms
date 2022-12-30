@@ -189,7 +189,7 @@ module.exports = function (logger, manager) {
         });
     }
 
-    function createTriggerInDB(triggerID, newTrigger) {
+    function createTriggerInDB(triggerID, newTrigger, inRetry) {
         var method = 'createTriggerInDB';
 
         manager.triggerDB.putDocument({
@@ -201,9 +201,27 @@ module.exports = function (logger, manager) {
             logger.info(method, triggerID, ': successfully inserted monitoring trigger in trigger config DB ');
         })
         .catch( (err) => {
-            logger.error(method, triggerID, " : Failed to create monitoring trigger in trigger configuration DB :", err);
+            //***************************************************************************************
+            //* Do a one time retry in case of timeout 
+            //***************************************************************************************
+            if ( err && err.code == 408 &&  inRetry == undefined ) {
+                logger.error(method, triggerID, ": There was a timeout in putDocument() to create a trigger into the trigger configuration database, so will retry ");
+                setTimeout(function () {
+                    createTriggerInDB(triggerID, newTrigger, "inRetry");
+                }, 1000);
+            } else {
+                logger.error(method, triggerID, " : Failed to create monitoring trigger in trigger configuration DB :", err);
+            }
+
         })
         
     }
 
+
+
+
+
+
+
+    
 };
