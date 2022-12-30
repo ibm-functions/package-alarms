@@ -450,9 +450,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     //***********************************************************************
                     var changedDoc = response.result.results[i].doc; 
 
-                    //** for Testing Scenario 5.  change the if statement  
-                    if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor == self.host ){
-                   // if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
+                    if ( changedDoc && changedDoc.monitor &&  changedDoc.monitor != self.host ){
                         logger.info(method,  "call change Handler with a change of the self-test trigger of partner worker : doc_id = ", changedDoc._id, changedDoc._rev, " and doc_status = ",  changedDoc.status);     
                     }else{
 
