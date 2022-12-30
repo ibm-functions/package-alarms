@@ -431,7 +431,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 
                 let response = await wrappingPostChanges();	
                 //For Testing Scenario 1: 
-                response =  new Object();
+                if( seq != "now" ) {
+                    response =  new Object();
+                }   
                 //********************************************************************
                 //* get the last_seq value to use in the next setupFollow() query 
                 //* if not part of response, then let it thrown an exception to end in 
