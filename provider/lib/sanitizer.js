@@ -55,7 +55,16 @@ module.exports = function (logger, manager) {
             })
         })
         .catch( (err) => {
-            logger.error(method, triggerID, ': Could not find the trigger in the database while sanitzer try to delete trigger :', err);
+            if ( err && err.code == 408 && retryCount < 5) {
+                logger.error(method, triggerID, ": There was a timeout in getDocument() to identify trigger for deletion from the trigger configuration database, so will retry ");
+                setTimeout(function () {
+                    self.deleteTriggerFromDB(triggerID, (retryCount + 1));
+                }, 1000);
+            } else if ( err && err.code == 404) {
+                logger.warn(method,triggerID, ': trigger to delete does not exist in trigger config DB at this time. ');  
+            } else {
+                logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
+            }
         })
     };
 
@@ -136,14 +145,14 @@ module.exports = function (logger, manager) {
                                 resolve(info);
                             })
                             .catch(err => {
-                                reject( 'retry of deleteTrigger ', triggerIdentifier,  ' failed with ', err);
+                                reject( 'retry of deleteTrigger '+ triggerIdentifier + ' failed with ' + err);
                             });
                         }, 1000);
                     } else {
-                        reject('trigger ', triggerIdentifier,  'delete request failed');
+                        reject('trigger ' + triggerIdentifier + ' delete request failed');
                     }
                 } else {
-                    resolve('trigger ', triggerIdentifier, 'delete request was successful');
+                    resolve('trigger ' +  triggerIdentifier + ' delete request was successful');
                 }
             });
         });
@@ -177,7 +186,7 @@ module.exports = function (logger, manager) {
         });
     };
 
-    this.deleteTriggerFeed = function (triggerID) {
+    this.deleteTriggerFeed = function (triggerID , inRetry ) {
         var method = 'deleteTriggerFeed';
 
         return new Promise(function (resolve, reject) {
@@ -194,26 +203,42 @@ module.exports = function (logger, manager) {
                     'reason': {'kind': 'AUTO', 'statusCode': undefined, 'message': `Marked for deletion`}
                 };
 
-                self.triggerDB.putDocument({
-                    db: self.databaseName,
+                manager.triggerDB.putDocument({
+                    db: manager.databaseName,
                     docId: triggerID,
                     document: updatedTriggerConfig
                 }).then(response => {
                     resolve(triggerID);
                 })
                 .catch( (err) => {
-                    reject('in subcall updateTrigger', err);
+                    reject('in subcall updateTrigger in configDB with err = ' + err);
                 })
             })
             .catch( (err) => {
-                reject( 'in subcall getTrigger',err);
+                if ( err && err.code == 404) {
+                    resolve( 'in subcall getTrigger : Trigger to delete in configDB does not exist anymore ');  
+                } else {
+                    reject( ' in subcall getTrigger, err = ' + err);
+                }
             })
         })
         .then(triggerID => {
             self.deleteTriggerFromDB(triggerID, 0);
         })
         .catch(err => {
-            logger.error(method, triggerID, ': An error occurred while deleting the trigger feed :', err);
+            //***************************************************************************************
+            //* Do a one time retry in case of timeout 
+            //***************************************************************************************
+            if ( err && err.code == 408 &&  inRetry == undefined ) {
+                logger.error(method, triggerID, ": There was a timeout in getDocument() to identify trigger for deletion from the trigger configuration database, so will retry ");
+                setTimeout(function () {
+                    self.deleteTriggerFeed(triggerID, "inRetry");
+                }, 1000);
+            } else if ( err && err.code == 404) {
+                logger.warn(method,triggerIdentifier, ': trigger to delete does not exist in trigger config DB at this time. ');  
+            } else {
+                logger.error(method, triggerID, ': Could not find the trigger to delete in the database err = :', err);
+            }
         });
     };
 
