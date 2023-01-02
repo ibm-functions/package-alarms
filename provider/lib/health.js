@@ -192,6 +192,8 @@ module.exports = function (logger, manager) {
     function createTriggerInDB(triggerID, newTrigger, inRetry) {
         var method = 'createTriggerInDB';
 
+        logger.info(method, triggerID, ': start creating a monitoring trigger in trigger config DB ');
+
         manager.triggerDB.putDocument({
             db: manager.databaseName,
             docId: triggerID,
