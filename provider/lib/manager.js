@@ -589,7 +589,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 });
 
                 subscriber.on('error', function (err) {
-                    logger.error(method, 'Error on subscriber client to redis ', err);
+                    logger.warn(method, 'Error on subscriber client to redis (automatically reconnecting) ', err);
                     reject(err);
                 });
 

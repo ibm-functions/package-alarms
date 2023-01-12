@@ -124,7 +124,7 @@ function createRedisClient() {
             });
 
             client.on('error', function (err) {
-                logger.error(method, 'Error connecting to redis', err);
+                logger.error(method, 'Error connecting to redis (automatically reconnecting)', err);
                 reject(err);
             });
         } else {
