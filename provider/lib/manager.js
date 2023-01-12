@@ -583,9 +583,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     logger.info(method, message, 'set to active host in channel', channel);
                     self.activeHost = message;
                 });
+                
+                subscriber.on('connect', function () {
+                    logger.info(method, 'Successfully connected or re-connected  the subscriber client to redis');
+                });
 
                 subscriber.on('error', function (err) {
-                    logger.error(method, 'Error connecting to redis while subscription', err);
+                    logger.error(method, 'Error on subscriber client to redis ', err);
                     reject(err);
                 });
 
