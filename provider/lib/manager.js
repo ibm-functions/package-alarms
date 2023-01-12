@@ -192,10 +192,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     var statusCode = response ? response.statusCode : undefined;
                     var headers = response ? response.headers : undefined;
                     
-                    if (error && source == "auth_handling") {
-                    	logger.error(method, triggerIdentifier, ': Error in handleAuth() request for trigger : ', error);
-                    }
-                    
                     //check for IAM auth error and ignore for now (do not disable) due to bug with IAM
                     if (source == "auth_handling" && error && error.statusCode === 400) {
                         var message;
@@ -206,7 +202,11 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         }
                         reject(message);
                     } else if (error || statusCode >= 400) {
-                        logger.error(method, triggerIdentifier, ': Received an error invoking :',  statusCode || error);
+                        if (source == "auth_handling") {
+                            logger.error(method, triggerIdentifier, ': Received an error from IAM service while firing :',  statusCode || error);
+                        } else { 
+                            logger.error(method, triggerIdentifier, ': Received an error from Cloud functions while firing :',  statusCode || error);
+                        }
                         var throttleCounter = throttleCount || 0;
 
                         // only manage trigger fires if they are not infinite
@@ -246,8 +246,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 } else if (retryCount === 0 && self.retrying[alarm_instance_id]) {
                                     reject('Unable to reach server to fire trigger ' + triggerIdentifier + ', another retry currently in progress');
                                 } else {
-                                    reject('Unable to reach server to fire trigger ' + triggerIdentifier);
                                     self.retrying[alarm_instance_id] = false;
+                                    reject('Fail to fire trigger ' + triggerIdentifier + '. Max number of retries reaches. Trigger NOT fired');
                                 }
                             }
                         }
@@ -336,7 +336,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 function (error, response, source ) {
                                     
                                     if (error && source == "auth_handling") {
-                                    logger.error(method,  triggerIdentifier, ': Error in handleAuth() request for trigger :', error);
+                                    logger.warn(method,  triggerIdentifier, ': Error in handleAuth() request while check if trigger still exist. Continue as trigger does not already exist. err =  :', error);
                                     }
                                     
                                     if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
@@ -583,9 +583,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     logger.info(method, message, 'set to active host in channel', channel);
                     self.activeHost = message;
                 });
+                
+                subscriber.on('connect', function () {
+                    logger.info(method, 'Successfully connected or re-connected  the subscriber client to redis');
+                });
 
                 subscriber.on('error', function (err) {
-                    logger.error(method, 'Error connecting to redis while subscription', err);
+                    logger.warn(method, 'Error on subscriber client to redis (automatically reconnecting) ', err);
                     reject(err);
                 });
 
