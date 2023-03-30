@@ -7,7 +7,7 @@ dockerhub_image_name="$2"
 dockerhub_image_tag="$3"
 dockerhub_image="${CONTAINER_REGISTRY}/${dockerhub_image_prefix}/${dockerhub_image_name}:${dockerhub_image_tag}"
 
-# docker login is already done in jenkins job calling this script
+# docker login is already done in jenkins job that calls this script
 
 echo docker build . --tag ${dockerhub_image}
 docker build . --tag ${dockerhub_image}
