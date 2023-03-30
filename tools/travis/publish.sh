@@ -5,9 +5,9 @@ set -eu
 dockerhub_image_prefix="$1"
 dockerhub_image_name="$2"
 dockerhub_image_tag="$3"
-dockerhub_image="${dockerhub_image_prefix}/${dockerhub_image_name}:${dockerhub_image_tag}"
+dockerhub_image="${CONTAINER_REGISTRY}/${dockerhub_image_prefix}/${dockerhub_image_name}:${dockerhub_image_tag}"
 
-docker login -u "${DOCKER_USER}" -p "${DOCKER_PASSWORD}"
+# docker login is already done in jenkins job calling this script
 
 echo docker build . --tag ${dockerhub_image}
 docker build . --tag ${dockerhub_image}
@@ -18,7 +18,7 @@ docker push ${dockerhub_image}
 # if image tag is nightly, also push a tag with the hash commit
 if [ ${dockerhub_image_tag} == "nightly" ]; then
   short_commit=`git rev-parse --short HEAD`
-  dockerhub_githash_image="${dockerhub_image_prefix}/${dockerhub_image_name}:${short_commit}"
+  dockerhub_githash_image="${CONTAINER_REGISTRY}/${dockerhub_image_prefix}/${dockerhub_image_name}:${short_commit}"
 
   echo docker tag ${dockerhub_image} ${dockerhub_githash_image}
   docker tag ${dockerhub_image} ${dockerhub_githash_image}
