@@ -47,6 +47,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.monitorStatus = {};
     self.retrying = {};
     self.databaseName = databaseName;
+    self.openTimeout = process.env.HTTP_OPEN_TIMEOUT_MS || 30000;
 
 
     function createTrigger(triggerIdentifier, newTrigger) {
@@ -689,7 +690,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         	var needleMethod = requestOptions.method; 
         	var needleUrl = requestOptions.uri;
         	var needleOptions = {
-                rejectUnauthorized: false
+                rejectUnauthorized: false,
+                open_timeout: self.openTimeout
             };
             if( requestOptions.auth.user ) {   //* cf-based authorization 
                 const usernamePassword = requestOptions.auth.user  +":"+ requestOptions.auth.pass;
