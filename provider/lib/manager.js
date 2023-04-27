@@ -47,7 +47,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.monitorStatus = {};
     self.retrying = {};
     self.databaseName = databaseName;
-    self.openTimeout = process.env.HTTP_OPEN_TIMEOUT_MS || 30000;
+    self.openTimeout = parseInt(process.env.HTTP_OPEN_TIMEOUT_MS) || 30000;
 
 
     function createTrigger(triggerIdentifier, newTrigger) {
