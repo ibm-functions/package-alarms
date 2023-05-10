@@ -691,15 +691,14 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         	var needleUrl = requestOptions.uri;
         	var needleOptions = {
                 rejectUnauthorized: false,
-                open_timeout: self.openTimeout
+                open_timeout: self.openTimeout,
+                headers: options.headers || {}
             };
             if( requestOptions.auth.user ) {   //* cf-based authorization 
                 const usernamePassword = requestOptions.auth.user  +":"+ requestOptions.auth.pass;
                 const usernamePasswordEnc = Buffer.from(usernamePassword).toString('base64');
-                needleOptions.headers = {}
                 needleOptions.headers['Authorization'] = "Basic " + usernamePasswordEnc
             }else if ( requestOptions.auth.bearer) { //* IAM based authorization 
-                needleOptions.headers = {}
                 needleOptions.headers['Authorization'] = 'Bearer ' +  requestOptions.auth.bearer
             }else {
             	logger.info(method, "no authentication info available");
