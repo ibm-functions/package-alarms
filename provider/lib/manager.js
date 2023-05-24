@@ -24,6 +24,7 @@ var CronAlarm = require('./cronAlarm.js');
 var IntervalAlarm = require('./intervalAlarm.js');
 var Sanitizer = require('./sanitizer');
 var authHandler = require('./authHandler');
+var https = require('https');
 
 module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
@@ -48,7 +49,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.retrying = {};
     self.databaseName = databaseName;
     self.openTimeout = parseInt(process.env.HTTP_OPEN_TIMEOUT_MS) || 30000;
-
+    self.httpAgent = new https.Agent({
+      keepAlive: process.env.HTTP_SOCKET_KEEP_ALIVE === 'true',
+      maxSockets: parseInt(process.env.HTTP_MAX_SOCKETS) || 400,
+      maxTotalSockets: parseInt(process.env.HTTP_MAX_TOTAL_SOCKETS) || 800,
+      scheduling: process.env.HTTP_SCHEDULING || 'lifo',
+    });
 
     function createTrigger(triggerIdentifier, newTrigger) {
         var method = 'createTrigger';
@@ -689,11 +695,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         	//**********************************************************
         	var needleMethod = requestOptions.method; 
         	var needleUrl = requestOptions.uri;
-        	var needleOptions = {
-                rejectUnauthorized: false,
-                open_timeout: self.openTimeout,
-                headers: options.headers || {}
-            };
+          var needleOptions = {
+            agent: self.httpAgent,
+            headers: options.headers || {},
+            open_timeout: self.openTimeout,
+            rejectUnauthorized: false,
+          };
+
             if( requestOptions.auth.user ) {   //* cf-based authorization 
                 const usernamePassword = requestOptions.auth.user  +":"+ requestOptions.auth.pass;
                 const usernamePasswordEnc = Buffer.from(usernamePassword).toString('base64');
