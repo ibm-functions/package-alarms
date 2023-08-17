@@ -59,18 +59,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     function createTrigger(triggerIdentifier, newTrigger) {
         var method = 'createTrigger';
 
-        var callback = function onTick() {
-            var triggerHandle = self.triggers[triggerIdentifier];
-            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
-            if (triggerHandle && shouldFireTrigger(triggerHandle) && hasTriggersRemaining(triggerHandle)) {
-                try {
-                    fireTrigger(triggerHandle, alarm_instance_id);
-                } catch (e) {
-                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
-                }
-            }
-        };
-
         newTrigger.uri = self.uriHost + '/api/v1/namespaces/' + newTrigger.namespace + '/triggers/' + newTrigger.name;
         newTrigger.triggerID = triggerIdentifier;
         if (newTrigger.monitor) {
@@ -86,8 +74,30 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             alarm = new CronAlarm(logger, newTrigger);
         }
 
+        return new Promise(function (resolve, reject) {
+                 resolve(alarm)
+        })
+    }
+
+    function scheduleTrigger(alarm, triggerIdentifier) {
+        var method = 'scheduleTrigger';
+
+        var callback = function onTick() {
+            var triggerHandle = self.triggers[triggerIdentifier];
+            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
+            if (triggerHandle && shouldFireTrigger(triggerHandle) && hasTriggersRemaining(triggerHandle)) {
+                try {
+                    fireTrigger(triggerHandle, alarm_instance_id);
+                } catch (e) {
+                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
+                }
+            }
+        };
+
         return alarm.scheduleAlarm(triggerIdentifier, callback);
     }
+
+
 
 
     function disableTrigger(triggerIdentifier,  statusCode, message , inRetry) {
@@ -352,9 +362,20 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                         logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
                                     } else {
                                         createTrigger(triggerIdentifier, doc)
-                                        .then(cachedTrigger => {
-                                            self.triggers[triggerIdentifier] = cachedTrigger;
+                                        .then( alarm => {
+                                            //**************************************************
+                                            //* create trigger must return immediately, so that 
+                                            //* the triggerIdentifier can be set, so provider 
+                                            //* is able to handle  "disableTrigger" and "deleteTrigger" requests
+                                            //* before startDate of the trigger is reached
+                                            //**********************************************  
+                                            self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                                             logger.info(method, triggerIdentifier, ': Created successfully');
+                                            return scheduleTrigger(alarm,triggerIdentifier)
+                                        })
+                                        .then(cachedTrigger => {
+                                            logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
+                        
                                             if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
                                                 try {
                                                     var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
@@ -507,10 +528,20 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         } else {
             //ignore changes to disabled or deleted triggers
             if ( (!triggerDeleted == true ) && (!doc.status || doc.status.active === true) && (!doc.monitor || doc.monitor === self.host)) {
-                createTrigger(triggerIdentifier, doc)
-                .then(cachedTrigger => {
-                    self.triggers[triggerIdentifier] = cachedTrigger;
+                 createTrigger(triggerIdentifier, doc)
+                .then( alarm => {
+                    //**************************************************
+                    //* create trigger must return immediately, so that 
+                    //* the triggerIdentifier can be set, so provider 
+                    //* is able to handle  "disableTrigger" and "deleteTrigger" requests
+                    //* before startDate of the trigger is reached
+                    //**********************************************  
+                    self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                     logger.info(method, triggerIdentifier, ': Created successfully');
+                    return scheduleTrigger(alarm,triggerIdentifier)
+                })
+                .then(cachedTrigger => {
+                    logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
 
                     if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
                         self.monitorStatus.triggerStarted = "success";
