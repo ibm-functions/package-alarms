@@ -541,13 +541,19 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     return scheduleTrigger(alarm,triggerIdentifier)
                 })
                 .then(cachedTrigger => {
-                    logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
+                    logger.info(method, triggerIdentifier, ': Trigger scheduled successfully');
 
                     if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
                         self.monitorStatus.triggerStarted = "success";
                     }
 
+                    //****************************************************
+                    //* if the started trigger is an interval handle, then 
+                    //* do first fire immediately 
+                    //* all other kind of trigger - alarm events are called by callback
+                    //****************************************************
                     if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
+                        logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
                         try {
                             var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
                             fireTrigger(cachedTrigger,alarm_instance_id);
