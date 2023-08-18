@@ -624,20 +624,47 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
                 //create a subscriber client that listens for requests to perform swap
                 subscriber.on('message', function (channel, message) {
-                    logger.info(method, message, 'set to active host in channel', channel);
+                    logger.info(method," on subscriber1 :", message, 'set to active host in channel', channel);
                     self.activeHost = message;
                 });
                 
                 subscriber.on('connect', function () {
-                    logger.info(method, 'Successfully connected or re-connected  the subscriber client to redis');
+                    logger.info(method," on subscriber1 :", 'Successfully connected or re-connected  the subscriber client to redis');
                 });
 
                 subscriber.on('error', function (err) {
-                    logger.warn(method, 'Error on subscriber client to redis (automatically reconnecting) ', err);
+                    logger.warn(method," on subscriber1 :", 'Error on subscriber client to redis (automatically reconnecting) ', err);
                     reject(err);
                 });
 
                 subscriber.subscribe(self.redisKey);
+
+                //*********************************************************************************
+                //* create a second subscriber with 1 min delay to ensure that 
+                //* anytime at least one subscriber is listening on the channel
+                //* Background info: The redis DB subscriber connection is terminating all 10 min 
+                //* and re-connecting immedately in 100-200 msec. 
+                //* So with a second subscriber is ensured that one is always available
+                //**********************************************************************************
+                setTimeout(function () {
+                    var subscriber2 = redisClient.duplicate();
+
+                    //create a second subscriber client that listens for requests to perform swap
+                    subscriber2.on('message', function (channel, message) {
+                        logger.info(method," on subscriber2 :", message, 'set to active host in channel', channel);
+                        self.activeHost = message;
+                 });
+                
+                    subscriber2.on('connect', function () {
+                        logger.info(method," on subscriber2 :", 'Successfully connected or re-connected  the subscriber client to redis');
+                    });
+
+                    subscriber2.on('error', function (err) {
+                        logger.warn(method," on subscriber2 :", 'Error on subscriber client to redis (automatically reconnecting) ', err);
+                    });
+
+                    subscriber2.subscribe(self.redisKey);
+                }, 60000 );
 
                 redisClient.hgetAsync(self.redisKey, self.redisField)
                 .then(activeHost => {
