@@ -116,6 +116,7 @@ function createRedisClient() {
                 // This is a bogus message and should be fixed in a later release of the package.
             } else {
                 client = redis.createClient(redisUrl);
+                client.stream.setKeepAlive(true, 60000);  //** do keep-alive ping each min */
             }
 
             client.on('connect', function () {
