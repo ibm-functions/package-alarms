@@ -630,6 +630,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 
                 subscriber.on('connect', function () {
                     logger.info(method, 'Successfully connected or re-connected  the subscriber client to redis');
+                    client.stream.setKeepAlive(true, 60000);  //** do keep-alive ping each min */
                 });
 
                 subscriber.on('error', function (err) {
