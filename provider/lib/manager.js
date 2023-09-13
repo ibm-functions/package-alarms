@@ -47,6 +47,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.monitoringAuth = process.env.MONITORING_AUTH;
     self.monitorStatus = {};
     self.retrying = {};
+    self.numOfConfiguredTriggers = 0;
+    self.numOfActivatedTriggers = 0;
+    self.numOfNotActivatedTriggers = 0;   
+
     self.databaseName = databaseName;
     self.openTimeout = parseInt(process.env.HTTP_OPEN_TIMEOUT_MS) || 30000;
     self.httpAgent = new https.Agent({
@@ -332,10 +336,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( response.result) {
                     var err = response.result.error; 
                     var body = response.result.rows; 
-
-
+                    
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
+                            self.numOfConfiguredTriggers += 1; 
                             var triggerIdentifier = triggerConfig.id;
                             var doc = triggerConfig.doc;
                             if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
@@ -371,6 +375,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                             //**********************************************  
                                             self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                                             logger.info(method, triggerIdentifier, ': Created successfully');
+                                            self.numOfActivatedTriggers += 1;  
                                             return scheduleTrigger(alarm,triggerIdentifier)
                                         })
                                         .then(cachedTrigger => {
@@ -386,6 +391,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                             }
                                         })
                                         .catch(err => {
+                                            self.numOfNotActivatedTriggers += 1;  
                                             var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
                                             disableTrigger(triggerIdentifier, undefined, message);
                                             logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
@@ -393,7 +399,25 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                     }
                                 });
                             }
-                        })    
+                        })
+                        //***********************************************************************
+                        //* write a log statement about the started triggers within the first 10 min 
+                        //***********************************************************************
+                        setTimeout(function() {
+                            logger.info(method,  ': tried to start ', self.numOfConfiguredTriggers , ' configured  alarm triggers.' , self.numOfActivatedTriggers , ' initiated successfully and ', self.numOfNotActivatedTriggers , ' did not initialize');
+                            //*******************************************************************************************
+                            //* log a WARN message, if num of not initialized triggers is between 1% and 5 % of all 
+                            //* log an Error message, if num of not initialized triggers is higher than 5 % of all 
+                            //*******************************************************************************************
+                            var successRate = (self.numOfActivatedTriggers / self.numOfConfiguredTriggers ) * 100; 
+                            if ( successRate < 99 && successRate > 95 ) {
+                                logger.warn(method, ': more then 1% and less than 5% of all alarm triggers failed to get initialized '); 
+                            }
+                            if ( successRate <= 95 ){
+                                logger.error(method, ': more then 5% of all  alarm triggers failed to get initialized '); 
+                            }
+                        
+                        }, 600000);    
                     }
                     else {
                         logger.error(method, ': Could not get latest state from database :', err);
