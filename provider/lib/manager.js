@@ -339,10 +339,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
-                            self.numOfConfiguredTriggers += 1; 
                             var triggerIdentifier = triggerConfig.id;
                             var doc = triggerConfig.doc;
                             if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
+                                self.numOfConfiguredTriggers += 1;  //* num of customer triggers in config DB  
                                 //check if trigger still exists in whisk db
                                 var namespace = doc.namespace;
                                 var name = doc.name;
