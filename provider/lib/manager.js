@@ -47,6 +47,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.monitoringAuth = process.env.MONITORING_AUTH;
     self.monitorStatus = {};
     self.retrying = {};
+    self.numOfConfiguredTriggers = 0;
+    self.numOfActivatedTriggers = 0;
+    self.numOfNotActivatedTriggers = 0;   
+
     self.databaseName = databaseName;
     self.openTimeout = parseInt(process.env.HTTP_OPEN_TIMEOUT_MS) || 30000;
     self.httpAgent = new https.Agent({
@@ -58,18 +62,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
     function createTrigger(triggerIdentifier, newTrigger) {
         var method = 'createTrigger';
-
-        var callback = function onTick() {
-            var triggerHandle = self.triggers[triggerIdentifier];
-            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
-            if (triggerHandle && shouldFireTrigger(triggerHandle) && hasTriggersRemaining(triggerHandle)) {
-                try {
-                    fireTrigger(triggerHandle, alarm_instance_id);
-                } catch (e) {
-                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
-                }
-            }
-        };
 
         newTrigger.uri = self.uriHost + '/api/v1/namespaces/' + newTrigger.namespace + '/triggers/' + newTrigger.name;
         newTrigger.triggerID = triggerIdentifier;
@@ -86,8 +78,30 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             alarm = new CronAlarm(logger, newTrigger);
         }
 
+        return new Promise(function (resolve, reject) {
+                 resolve(alarm)
+        })
+    }
+
+    function scheduleTrigger(alarm, triggerIdentifier) {
+        var method = 'scheduleTrigger';
+
+        var callback = function onTick() {
+            var triggerHandle = self.triggers[triggerIdentifier];
+            var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
+            if (triggerHandle && shouldFireTrigger(triggerHandle) && hasTriggersRemaining(triggerHandle)) {
+                try {
+                    fireTrigger(triggerHandle, alarm_instance_id);
+                } catch (e) {
+                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :', e);
+                }
+            }
+        };
+
         return alarm.scheduleAlarm(triggerIdentifier, callback);
     }
+
+
 
 
     function disableTrigger(triggerIdentifier,  statusCode, message , inRetry) {
@@ -322,13 +336,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( response.result) {
                     var err = response.result.error; 
                     var body = response.result.rows; 
-
-
+                    
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
                             var triggerIdentifier = triggerConfig.id;
                             var doc = triggerConfig.doc;
                             if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
+                                self.numOfConfiguredTriggers += 1;  //* num of customer triggers in config DB  
                                 //check if trigger still exists in whisk db
                                 var namespace = doc.namespace;
                                 var name = doc.name;
@@ -352,9 +366,21 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                         logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
                                     } else {
                                         createTrigger(triggerIdentifier, doc)
-                                        .then(cachedTrigger => {
-                                            self.triggers[triggerIdentifier] = cachedTrigger;
+                                        .then( alarm => {
+                                            //**************************************************
+                                            //* create trigger must return immediately, so that 
+                                            //* the triggerIdentifier can be set, so provider 
+                                            //* is able to handle  "disableTrigger" and "deleteTrigger" requests
+                                            //* before startDate of the trigger is reached
+                                            //**********************************************  
+                                            self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                                             logger.info(method, triggerIdentifier, ': Created successfully');
+                                            self.numOfActivatedTriggers += 1;  
+                                            return scheduleTrigger(alarm,triggerIdentifier)
+                                        })
+                                        .then(cachedTrigger => {
+                                            logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
+                        
                                             if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
                                                 try {
                                                     var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
@@ -365,6 +391,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                             }
                                         })
                                         .catch(err => {
+                                            self.numOfNotActivatedTriggers += 1;  
                                             var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
                                             disableTrigger(triggerIdentifier, undefined, message);
                                             logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
@@ -372,7 +399,25 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                     }
                                 });
                             }
-                        })    
+                        })
+                        //***********************************************************************
+                        //* write a log statement about the started triggers within the first 10 min 
+                        //***********************************************************************
+                        setTimeout(function() {
+                            logger.info(method,  ': tried to start ', self.numOfConfiguredTriggers , ' configured  alarm triggers.' , self.numOfActivatedTriggers , ' initiated successfully and ', self.numOfNotActivatedTriggers , ' did not initialize');
+                            //*******************************************************************************************
+                            //* log a WARN message, if num of not initialized triggers is between 1% and 5 % of all 
+                            //* log an Error message, if num of not initialized triggers is higher than 5 % of all 
+                            //*******************************************************************************************
+                            var successRate = (self.numOfActivatedTriggers / self.numOfConfiguredTriggers ) * 100; 
+                            if ( successRate < 99 && successRate > 95 ) {
+                                logger.warn(method, ': more then 1% and less than 5% of all alarm triggers failed to get initialized '); 
+                            }
+                            if ( successRate <= 95 ){
+                                logger.error(method, ': more then 5% of all  alarm triggers failed to get initialized '); 
+                            }
+                        
+                        }, 600000);    
                     }
                     else {
                         logger.error(method, ': Could not get latest state from database :', err);
@@ -507,16 +552,32 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         } else {
             //ignore changes to disabled or deleted triggers
             if ( (!triggerDeleted == true ) && (!doc.status || doc.status.active === true) && (!doc.monitor || doc.monitor === self.host)) {
-                createTrigger(triggerIdentifier, doc)
-                .then(cachedTrigger => {
-                    self.triggers[triggerIdentifier] = cachedTrigger;
+                 createTrigger(triggerIdentifier, doc)
+                .then( alarm => {
+                    //**************************************************
+                    //* create trigger must return immediately, so that 
+                    //* the triggerIdentifier can be set, so provider 
+                    //* is able to handle  "disableTrigger" and "deleteTrigger" requests
+                    //* before startDate of the trigger is reached
+                    //**********************************************  
+                    self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                     logger.info(method, triggerIdentifier, ': Created successfully');
+                    return scheduleTrigger(alarm,triggerIdentifier)
+                })
+                .then(cachedTrigger => {
+                    logger.info(method, triggerIdentifier, ': Trigger scheduled successfully');
 
                     if (isMonitoringTrigger(cachedTrigger.monitor, cachedTrigger.name)) {
                         self.monitorStatus.triggerStarted = "success";
                     }
 
+                    //****************************************************
+                    //* if the started trigger is an interval handle, then 
+                    //* do first fire immediately 
+                    //* all other kind of trigger - alarm events are called by callback
+                    //****************************************************
                     if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
+                        logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
                         try {
                             var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
                             fireTrigger(cachedTrigger,alarm_instance_id);
@@ -587,20 +648,47 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
                 //create a subscriber client that listens for requests to perform swap
                 subscriber.on('message', function (channel, message) {
-                    logger.info(method, message, 'set to active host in channel', channel);
+                    logger.info(method," on subscriber1 :", message, 'set to active host in channel', channel);
                     self.activeHost = message;
                 });
                 
                 subscriber.on('connect', function () {
-                    logger.info(method, 'Successfully connected or re-connected  the subscriber client to redis');
+                    logger.info(method," on subscriber1 :", 'Successfully connected or re-connected  the subscriber client to redis');
                 });
 
                 subscriber.on('error', function (err) {
-                    logger.warn(method, 'Error on subscriber client to redis (automatically reconnecting) ', err);
+                    logger.warn(method," on subscriber1 :", 'Error on subscriber client to redis (automatically reconnecting) ', err);
                     reject(err);
                 });
 
                 subscriber.subscribe(self.redisKey);
+
+                //*********************************************************************************
+                //* create a second subscriber with 1 min delay to ensure that 
+                //* anytime at least one subscriber is listening on the channel
+                //* Background info: The redis DB subscriber connection is terminating all 10 min 
+                //* and re-connecting immedately in 100-200 msec. 
+                //* So with a second subscriber is ensured that one is always available
+                //**********************************************************************************
+                setTimeout(function () {
+                    var subscriber2 = redisClient.duplicate();
+
+                    //create a second subscriber client that listens for requests to perform swap
+                    subscriber2.on('message', function (channel, message) {
+                        logger.info(method," on subscriber2 :", message, 'set to active host in channel', channel);
+                        self.activeHost = message;
+                 });
+                
+                    subscriber2.on('connect', function () {
+                        logger.info(method," on subscriber2 :", 'Successfully connected or re-connected  the subscriber client to redis');
+                    });
+
+                    subscriber2.on('error', function (err) {
+                        logger.warn(method," on subscriber2 :", 'Error on subscriber client to redis (automatically reconnecting) ', err);
+                    });
+
+                    subscriber2.subscribe(self.redisKey);
+                }, 60000 );
 
                 redisClient.hgetAsync(self.redisKey, self.redisField)
                 .then(activeHost => {

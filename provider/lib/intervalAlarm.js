@@ -32,6 +32,8 @@ module.exports = function (logger, newTrigger) {
         additionalData: newTrigger.additionalData
     };
 
+    this.cachedTrigger = cachedTrigger 
+
     this.scheduleAlarm = function (triggerIdentifier, callback) {
         var method = 'scheduleIntervalAlarm';
 
