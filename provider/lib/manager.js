@@ -339,66 +339,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
-                            var triggerIdentifier = triggerConfig.id;
-                            var doc = triggerConfig.doc;
-                            if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
-                                self.numOfConfiguredTriggers += 1;  //* num of customer triggers in config DB  
-                                //check if trigger still exists in whisk db
-                                var namespace = doc.namespace;
-                                var name = doc.name;
-                                var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
-                                var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
-
-                                logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
-                                self.authRequest(doc, {
-                                    method: 'get',
-                                    uri: uri
-                                }, undefined,
-                                function (error, response, source ) {
-                                    
-                                    if (error && source == "auth_handling") {
-                                    logger.warn(method,  triggerIdentifier, ': Error in handleAuth() request while check if trigger still exist. Continue as trigger does not already exist. err =  :', error);
-                                    }
-                                    
-                                    if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
-                                        var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
-                                        disableTrigger(triggerIdentifier, response.statusCode, message);
-                                        logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
-                                    } else {
-                                        createTrigger(triggerIdentifier, doc)
-                                        .then( alarm => {
-                                            //**************************************************
-                                            //* create trigger must return immediately, so that 
-                                            //* the triggerIdentifier can be set, so provider 
-                                            //* is able to handle  "disableTrigger" and "deleteTrigger" requests
-                                            //* before startDate of the trigger is reached
-                                            //**********************************************  
-                                            self.triggers[triggerIdentifier] = alarm.cachedTrigger;
-                                            logger.info(method, triggerIdentifier, ': Created successfully');
-                                            self.numOfActivatedTriggers += 1;  
-                                            return scheduleTrigger(alarm,triggerIdentifier)
-                                        })
-                                        .then(cachedTrigger => {
-                                            logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
-                        
-                                            if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
-                                                try {
-                                                    var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
-                                                    fireTrigger(cachedTrigger, alarm_instance_id);
-                                                } catch (e) {
-                                                    logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
-                                                }
-                                            }
-                                        })
-                                        .catch(err => {
-                                            self.numOfNotActivatedTriggers += 1;  
-                                            var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
-                                            disableTrigger(triggerIdentifier, undefined, message);
-                                            logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
-                                        });
-                                    }
-                                });
-                            }
+                            triggerInitializer(triggerConfig);
                         })
                         //***********************************************************************
                         //* write a log statement about the started triggers within the first 10 min 
@@ -435,6 +376,77 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             logger.error(method, ": Error in call command to provider configuration DB : " + err );
         }
     };
+
+    //*********************************************************
+    //* triggerInitializer    
+    //* a function the initializes a new trigger ovject each 
+    //* time it is called 
+    //* parm: triggerConfig  - config of one trigger
+    //*********************************************************
+    async function triggerInitializer(triggerConfig) {
+        var triggerIdentifier = triggerConfig.id;
+        var doc = triggerConfig.doc;
+        if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
+            self.numOfConfiguredTriggers += 1;  //* num of customer triggers in config DB  
+            //check if trigger still exists in whisk db
+            var namespace = doc.namespace;
+            var name = doc.name;
+            var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
+            var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
+
+            logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
+            self.authRequest(doc, {
+                method: 'get',
+                uri: uri
+            }, undefined,
+            function (error, response, source ) {
+                
+                if (error && source == "auth_handling") {
+                logger.warn(method,  triggerIdentifier, ': Error in handleAuth() request while check if trigger still exist. Continue as trigger does not already exist. err =  :', error);
+                }
+                
+                if (!error && shouldDisableTrigger(response.statusCode, response.headers, isIAMNamespace)) {
+                    var message = 'Automatically disabled after receiving a ' + response.statusCode + ' status code on trigger initialization';
+                    disableTrigger(triggerIdentifier, response.statusCode, message);
+                    logger.error(method, triggerIdentifier, ': Trigger has been disabled due to status code :', response.statusCode);
+                } else {
+                    createTrigger(triggerIdentifier, doc)
+                    .then( alarm => {
+                        //**************************************************
+                        //* create trigger must return immediately, so that 
+                        //* the triggerIdentifier can be set, so provider 
+                        //* is able to handle  "disableTrigger" and "deleteTrigger" requests
+                        //* before startDate of the trigger is reached
+                        //**********************************************  
+                        self.triggers[triggerIdentifier] = alarm.cachedTrigger;
+                        logger.info(method, triggerIdentifier, ': Created successfully');
+                        self.numOfActivatedTriggers += 1;  
+                        return scheduleTrigger(alarm,triggerIdentifier)
+                    })
+                    .then(cachedTrigger => {
+                        logger.info(method, triggerIdentifier, ': Trigger fired first time successfully');
+    
+                        if (cachedTrigger.intervalHandle && shouldFireTrigger(cachedTrigger)) {
+                            try {
+                                var alarm_instance_id = "alarm_instance_id_"+ Date.now(); 
+                                fireTrigger(cachedTrigger, alarm_instance_id);
+                            } catch (e) {
+                                logger.error(method, triggerIdentifier, ': Exception occurred while firing trigger :',  e);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        self.numOfNotActivatedTriggers += 1;  
+                        var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
+                        disableTrigger(triggerIdentifier, undefined, message);
+                        logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
+                    });
+                }
+            });
+        }
+    }
+
+
 
     //*********************************************************
     //* setup follow is continuously receiving changes of the  
