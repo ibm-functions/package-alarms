@@ -50,6 +50,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.numOfConfiguredTriggers = 0;
     self.numOfActivatedTriggers = 0;
     self.numOfNotActivatedTriggers = 0;   
+    self.maxConcurrentTriggerInitializer = 2;  //** TODO : increase to 1000
+    self.triggersForLaterBuffer = [];
 
     self.databaseName = databaseName;
     self.openTimeout = parseInt(process.env.HTTP_OPEN_TIMEOUT_MS) || 30000;
@@ -336,11 +338,28 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( response.result) {
                     var err = response.result.error; 
                     var body = response.result.rows; 
+                    var initTriggerCounter = 0; 
                     
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
-                            triggerInitializer(triggerConfig);
+
+                            if ( initTriggerCounter < self.maxConcurrentTriggerInitializer) {
+                                //*******************************************************************
+                                //* Start an initializer with its first triggerConfig to initialize 
+                                //* Intention to start configure max num of Initializers. An initializer 
+                                //* first start the first provided triggerConfig. If that initialization 
+                                //* is finished, then it pull the next trigger to start from the triggersForLaterBuffer. 
+                                //*******************************************************************
+                                triggerInitializer(triggerConfig);
+                                initTriggerCounter +=1;
+                            } else {
+                                triggersForLaterBuffer.push(triggerConfig);
+                                initTriggerCounter +=1;
+                            }    
                         })
+                        logger.info(method,  ': ', this.triggersForLaterBuffer.length,'Triggers for Later start are: ' , triggersForLaterBuffer.toString());
+                        
+
                         //***********************************************************************
                         //* write a log statement about the started triggers within the first 10 min 
                         //***********************************************************************
