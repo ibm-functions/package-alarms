@@ -384,6 +384,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     //* parm: triggerConfig  - config of one trigger
     //*********************************************************
     async function triggerInitializer(triggerConfig) {
+        var method = 'triggerInitializer';
+
         var triggerIdentifier = triggerConfig.id;
         var doc = triggerConfig.doc;
         if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
