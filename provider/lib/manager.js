@@ -355,7 +355,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 //* first start the first provided triggerConfig. If that initialization 
                                 //* is finished, then it pull the next trigger to start from the triggersForLaterBuffer. 
                                 //*******************************************************************
-                                triggerInitializer(triggerConfig, initTriggerCounter );
+                               // triggerInitializer(triggerConfig, initTriggerCounter );
                                 initTriggerCounter +=1;
                             } else {
                                 logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
