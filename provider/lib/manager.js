@@ -353,6 +353,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 triggerInitializer(triggerConfig, initTriggerCounter );
                                 initTriggerCounter +=1;
                             } else {
+                                logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
                                 self.triggersForLaterBuffer.push(triggerConfig);
                                 initTriggerCounter +=1;
                             }    
