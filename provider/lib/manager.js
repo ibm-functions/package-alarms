@@ -350,7 +350,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 //* first start the first provided triggerConfig. If that initialization 
                                 //* is finished, then it pull the next trigger to start from the triggersForLaterBuffer. 
                                 //*******************************************************************
-                                triggerInitializer(triggerConfig);
+                                triggerInitializer(triggerConfig, initTriggerCounter );
                                 initTriggerCounter +=1;
                             } else {
                                 self.triggersForLaterBuffer.push(triggerConfig);
@@ -402,7 +402,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     //* time it is called 
     //* parm: triggerConfig  - config of one trigger
     //*********************************************************
-    async function triggerInitializer(triggerConfig) {
+    async function triggerInitializer(triggerConfig, initializerNumber) {
         var method = 'triggerInitializer';
 
         var triggerIdentifier = triggerConfig.id;
@@ -414,8 +414,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             var name = doc.name;
             var uri = self.uriHost + '/api/v1/namespaces/' + namespace + '/triggers/' + name;
             var isIAMNamespace = doc.additionalData && doc.additionalData.iamApikey;
-
-            logger.info(method, triggerIdentifier, ': Checking if trigger still exists');
+           
+            logger.info(method, triggerIdentifier, ': Trigger will be initialized by initializer nr: ',initializerNumber );
+            logger.info(method, triggerIdentifier, ': Pre-Check if trigger already exists in openwhisk DB');
             self.authRequest(doc, {
                 method: 'get',
                 uri: uri
@@ -448,9 +449,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         //* process the next trigger to initialize , now . 
                         //****************************************************************************
                         if ( self.triggersForLaterBuffer.length > 0 ) {
-                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift(), initializerNumber), 0);
                         }
-                        
+
                         return scheduleTrigger(alarm,triggerIdentifier)
                     })
                     .then(cachedTrigger => {
@@ -472,7 +473,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         //* process the next trigger to initialize , now . 
                         //****************************************************************************
                         if ( self.triggersForLaterBuffer.length > 0 ) {
-                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift(),initializerNumber), 0);
                         }
 
                         var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
