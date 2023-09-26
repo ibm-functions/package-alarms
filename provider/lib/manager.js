@@ -357,7 +357,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 initTriggerCounter +=1;
                             }    
                         })
-                        logger.info(method,  ': ', this.triggersForLaterBuffer.length,'Triggers for Later start are: ' , triggersForLaterBuffer.toString());
+                        logger.info(method,  ': ', this.triggersForLaterBuffer.length,'Triggers for Later start are: ' , triggersForLaterBuffer);
                         
 
                         //***********************************************************************
