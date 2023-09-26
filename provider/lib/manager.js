@@ -353,12 +353,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 triggerInitializer(triggerConfig);
                                 initTriggerCounter +=1;
                             } else {
-                                triggersForLaterBuffer.push(triggerConfig);
+                                self.triggersForLaterBuffer.push(triggerConfig);
                                 initTriggerCounter +=1;
                             }    
                         })
                         
-                        logger.info(method,  ': num triggersForLater', this.triggersForLaterBuffer.length);
+                        logger.info(method,  ': num triggersForLater', self.triggersForLaterBuffer.length);
                         
                         //***********************************************************************
                         //* write a log statement about the started triggers within the first 10 min 
@@ -442,6 +442,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         self.triggers[triggerIdentifier] = alarm.cachedTrigger;
                         logger.info(method, triggerIdentifier, ': Created successfully');
                         self.numOfActivatedTriggers += 1;  
+                        
+                        //***************************************************************************
+                        //* TriggerInitializer has finished the HTTP external calls, so it can 
+                        //* process the next trigger to initialize , now . 
+                        //****************************************************************************
+                        setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                        
                         return scheduleTrigger(alarm,triggerIdentifier)
                     })
                     .then(cachedTrigger => {
@@ -458,6 +465,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     })
                     .catch(err => {
                         self.numOfNotActivatedTriggers += 1;  
+                        //***************************************************************************
+                        //* TriggerInitializer has finished the HTTP external calls, so it can 
+                        //* process the next trigger to initialize , now . 
+                        //****************************************************************************
+                        setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                        
                         var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
                         disableTrigger(triggerIdentifier, undefined, message);
                         logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
