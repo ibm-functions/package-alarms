@@ -447,7 +447,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         //* TriggerInitializer has finished the HTTP external calls, so it can 
                         //* process the next trigger to initialize , now . 
                         //****************************************************************************
-                        setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                        if ( self.triggersForLaterBuffer.length > 0 ) {
+                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                        }
                         
                         return scheduleTrigger(alarm,triggerIdentifier)
                     })
@@ -469,8 +471,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         //* TriggerInitializer has finished the HTTP external calls, so it can 
                         //* process the next trigger to initialize , now . 
                         //****************************************************************************
-                        setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
-                        
+                        if ( self.triggersForLaterBuffer.length > 0 ) {
+                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift()), 0);
+                        }
+
                         var message = 'Automatically disabled after receiving error on trigger initialization: ' + err;
                         disableTrigger(triggerIdentifier, undefined, message);
                         logger.error(method,  triggerIdentifier, ': Disabling trigger failed :',err);
