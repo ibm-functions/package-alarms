@@ -346,7 +346,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         body.forEach(function (triggerConfig) {
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
-                            logger.info(method,  ':triggerConfig  = ', Object.prototype.toString.call(triggerConfig));
+                            var infoString = ':triggerConfig  = ' + JSON.stringify(triggerConfig);
+                            logger.info(method, infoString);
                             logger.info(method,  ':triggerConfig  = ', triggerConfig.__proto__.constructor.name);
                             logger.info(method,  ':triggerConfig  =', JSON.stringify(triggerConfig) );
                         
