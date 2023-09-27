@@ -342,7 +342,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     
                     if ( !err && body ) {
                                              
-                        logger.info(method,  ':before loop num triggersForLater', self.triggersForLaterBuffer.length);
+                        logger.info(method,  ':before loop num triggersForLater', JSON.stringify(body) );
                         body.forEach(function (triggerConfig) {
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
