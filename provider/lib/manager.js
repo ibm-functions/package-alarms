@@ -26,6 +26,8 @@ var Sanitizer = require('./sanitizer');
 var authHandler = require('./authHandler');
 var https = require('https');
 
+const util = require('node:util');
+
 module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
     var redisKeyPrefix = process.env.REDIS_KEY_PREFIX || triggerDB.config.db;
@@ -346,7 +348,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         body.forEach(function (triggerConfig) {
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
-                            var infoString = ':triggerConfig  = ' + JSON.stringify(triggerConfig);
+                            var inspectString = ':triggerInspect  = ' + util.inspect(triggerConfig)
+                            logger.info(method, inspectString);
+                            
+                            var infoString = ':triggerInfo  = ' + JSON.stringify(triggerConfig);
                             logger.info(method, infoString);
                             logger.info(method,  ':triggerConfig  = ', triggerConfig.__proto__.constructor.name);
                             logger.info(method,  ':triggerConfig  =', JSON.stringify(triggerConfig) );
