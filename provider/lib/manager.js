@@ -369,7 +369,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
                             logger.info(method, 'triggerConfig key = ',triggerConfig.key)
                             logger.info(method, 'triggerConfig value = ',triggerConfig.value )
-                            logger.info(method, 'triggerConfig doc base64 = ',  base64 (triggerConfig.doc) )
+                            try {
+                                logger.info(method, 'triggerConfig doc base64 = ',  base64 (JSON.stringify(triggerConfig.doc)) )
+                            } catch( err ){
+                                logger.info(method, ":inspect  doc  = ", err);
+                            }
+    
                             logger.info(method, 'triggerConfig doc = ',util.inspect(triggerConfig.doc)  )
 
                             try{
