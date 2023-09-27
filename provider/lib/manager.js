@@ -347,6 +347,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
                             logger.info(method,  ':triggerConfig  = ', Object.prototype.toString.call(triggerConfig));
+                            logger.info(method,  ':triggerConfig  = ', triggerConfig.__proto__.constructor.name);
                             logger.info(method,  ':triggerConfig  =', JSON.stringify(triggerConfig) );
                         
                             if ( initTriggerCounter < self.maxConcurrentTriggerInitializer) {
