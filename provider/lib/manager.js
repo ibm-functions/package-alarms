@@ -352,6 +352,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             }
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
+                            logger.info(method, ':initTriggerkeys = ' , Object.keys(triggerConfig));
                             try{
 
                                 var inspectString = ':triggerInspect  = ' + util.inspect(triggerConfig)
