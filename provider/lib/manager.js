@@ -354,6 +354,9 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
                             logger.info(method, ':initTriggerkeys = ' , Object.keys(triggerConfig));
 
+                            logger.info(method, 'triggerConfig id = ',  base64 (triggerConfig.id) )
+                            
+
                             logger.info(method, 'triggerConfig id = ', triggerConfig.id.substring(0,15) )
                             if( triggerConfig.id.contains( "armada") ){
                                 logger.info (method, "test trigger found")
@@ -361,6 +364,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
                             logger.info(method, 'triggerConfig key = ',triggerConfig.key)
                             logger.info(method, 'triggerConfig value = ',triggerConfig.value )
+                            logger.info(method, 'triggerConfig doc base64 = ',  base64 (triggerConfig.doc) )
                             logger.info(method, 'triggerConfig doc = ',util.inspect(triggerConfig.doc)  )
 
                             try{
@@ -955,4 +959,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         }
     }
 
+    function base64(str) {
+        return Buffer.from(str, 'utf8').toString('base64');
+     }
 };
