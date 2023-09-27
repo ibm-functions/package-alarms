@@ -346,11 +346,21 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                              
                         logger.info(method,  ':before loop num triggersForLater', JSON.stringify(body) );
                         body.forEach(function (triggerConfig) {
+
+                            if ( triggerConfig == null) {
+                                logger.info(method,  ':Emtpy triggerConfig object found ');
+                            }
                             logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
-                            var inspectString = ':triggerInspect  = ' + util.inspect(triggerConfig)
-                            logger.info(method, inspectString);
-                            
+                            try{
+
+                                var inspectString = ':triggerInspect  = ' + util.inspect(triggerConfig)
+                                logger.info(method, inspectString);
+                            } catch( err ){
+                                logger.info(method, ":inspectError = ", err);
+                            }
+
+
                             var infoString = ':triggerInfo  = ' + JSON.stringify(triggerConfig);
                             logger.info(method, infoString);
                             logger.info(method,  ':triggerConfig  = ', triggerConfig.__proto__.constructor.name);
