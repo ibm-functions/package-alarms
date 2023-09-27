@@ -358,9 +358,14 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             
 
                             logger.info(method, 'triggerConfig id = ', triggerConfig.id.substring(0,15) )
-                            if( triggerConfig.id.contains( "armada") ){
-                                logger.info (method, "test trigger found")
+                            try {
+                                if ( triggerConfig.id.contains( 'armada') ){
+                                    logger.info (method, "test trigger found")
+                                }
+                            } catch(e ){
+                                logger.error(method, ": contains_err = ", e);
                             }
+
 
                             logger.info(method, 'triggerConfig key = ',triggerConfig.key)
                             logger.info(method, 'triggerConfig value = ',triggerConfig.value )
