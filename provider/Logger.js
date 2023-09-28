@@ -36,32 +36,25 @@ var logger = new winston.Logger({
     ],
     filters: [
         function maskAPIKeys(level, msg) {
-             console.log ( " filter the msg = ", msg)
-             return msg.replace(apiKeyRegex, 'xxxxxxxx');
+            return msg.replace(apiKeyRegex, 'xxxxxxxx');
         }
     ]
 });
 
 function getMessage(argsObject) {
-    console.log( "bin start for argObject= " , argsObject)
     var args = Array.prototype.slice.call(argsObject);
     args.shift();
     args.forEach(function (arg, i) {
         if (_.isObject(args[i])) {
-            console.log( "do SafeStringify for arg nr: ",i," with arg = "  , args[i])
             args[i] = safeStringify(args[i]);
-            console.log( "bin fertig for arg nr = " , i)
-            console.log( "bin fertig for args  = " ,args[i] )
         }
     });
-    console.log( "bin da with args" , args)
     return args.join(' ');
 }
 
 // FORMAT: s"[$time] [$category] [$id] [$componentName] [$name] $message"
 module.exports = {
     info: function (name) {
-        console.log("bin vorStart for ", arguments)
         logger.info('[' + name + ']', getMessage(arguments));
     },
     warn: function (name) {
