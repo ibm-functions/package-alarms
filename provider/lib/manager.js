@@ -356,10 +356,11 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 triggerInitializer(triggerConfig, initTriggerCounter );
                                 initTriggerCounter +=1;
                             } else {
-                                logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
                                 if ( ! triggerConfig.id.includes( 'armada_host') ){
-                                    logger.info (method, "test trigger found")
+                                    logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
                                     self.triggersForLaterBuffer.push(triggerConfig);
+                                } else {
+                                    logger.info (method, ": unexpected test triggerConfig found in alarmProvider configDB : ", triggerConfig.id)
                                 }
                                 initTriggerCounter +=1;
                             }    
