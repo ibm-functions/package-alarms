@@ -369,8 +369,11 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             logger.info(method, 'triggerConfig 45 id = ', triggerConfig.id.substring(0,45) )
                             logger.info(method, 'triggerConfig 50 id = ', triggerConfig.id.substring(0,50) )
                             logger.info(method, 'triggerConfig 55 id = ', triggerConfig.id.substring(0,55) )
+                            logger.info(method, 'triggerConfig 56 id = ', triggerConfig.id.substring(0,56) )
+                            logger.info(method, 'triggerConfig 57 id = ', triggerConfig.id.substring(0,57) )
+                            logger.info(method, 'triggerConfig 58 id = ', triggerConfig.id.substring(0,58) )
+                            logger.info(method, 'triggerConfig 59 id = ', triggerConfig.id.substring(0,59) )
                             logger.info(method, 'triggerConfig 60 id = ', triggerConfig.id.substring(0,60) )
-                            
                             
                             try {
                                 if ( triggerConfig.id.includes( 'armada_host') ){
