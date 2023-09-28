@@ -60,6 +60,7 @@ function getMessage(argsObject) {
 // FORMAT: s"[$time] [$category] [$id] [$componentName] [$name] $message"
 module.exports = {
     info: function (name) {
+        console.log("bin vorStart for ", arguments)
         logger.info('[' + name + ']', getMessage(arguments));
     },
     warn: function (name) {
