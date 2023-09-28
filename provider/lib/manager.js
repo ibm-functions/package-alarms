@@ -325,11 +325,12 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             logger.info(method, 'resetting system from last state');
             logger.info(method, "loggertest1: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0_1695803541249");
             logger.info(method, "loggertest2: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armad");
+            logger.info(method, "loggertest3: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker1armada");
             logger.info(method, "loggertest3: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada");
+            logger.info(method, "loggertest3: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armade");
             logger.info(method, "loggertest4: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_");
             logger.info(method, "loggertest5: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_h");
             logger.info(method, "loggertest6: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0");
-            
             
 
             //*********************************************************
