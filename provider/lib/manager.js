@@ -325,7 +325,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
             logger.info(method, 'resetting system from last state');
             logger.info(method, 'loggertest1: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0_1695803541249');
             logger.info(method, 'loggertest1a: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-            logger.info(method, 'loggertest1: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/alarms_worker0armada_host0_1695803541249');
+            logger.info(method, 'loggertest1b: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/alarms_worker0armada_host0_1695803541249');
+            logger.info(method, 'loggertest1c: ', 'alarms_worker0armada_host0_1695803541249');
+            logger.info(method, 'loggertest1d: ', 'alarms_worker0armada_');
+            logger.info(method, 'loggertest1e: ', 'alarms_work0armada');
+            logger.info(method, 'loggertest1f: ', 'alarms_worker8armada');
+            logger.info(method, 'loggertest1g: ', 'alarms_worker0armadi');
+            logger.info(method, 'loggertest1h: ', 'blarms_worker0armada');
             logger.info(method, "loggertest2: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armad");
             logger.info(method, "loggertest3a: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker1armada");
             logger.info(method, "loggertest3b: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada");
