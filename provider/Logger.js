@@ -42,6 +42,7 @@ var logger = new winston.Logger({
 });
 
 function getMessage(argsObject) {
+    console.log( "bin start for argObject= " , argsObject)
     var args = Array.prototype.slice.call(argsObject);
     args.shift();
     args.forEach(function (arg, i) {
