@@ -36,6 +36,8 @@ var logger = new winston.Logger({
     ],
     filters: [
         function maskAPIKeys(level, msg) {
+            logger.info('[Frank]', getMessage("bin da"));
+   
             return msg.replace(apiKeyRegex, 'xxxxxxxx');
         }
     ]
