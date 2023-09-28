@@ -323,27 +323,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
         try{
             logger.info(method, 'resetting system from last state');
-            logger.info(method, 'loggertest1: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0_1695803541249');
-            logger.info(method, 'loggertest1a: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-            logger.info(method, 'loggertest1b: ', '9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/alarms_worker0armada_host0_1695803541249');
-            logger.info(method, 'loggertest1c: ', 'alarms_worker0armada_host0_1695803541249');
-            logger.info(method, 'loggertest1d: ', 'alarms_worker0armada_');
-            logger.info(method, 'loggertest1e: ', 'alarms_work0armada');
-            logger.info(method, 'loggertest1f: ', 'alarms_worker8armada');
-            logger.info(method, 'loggertest1g: ', 'alarms_worker0armadi');
-            logger.info(method, 'loggertest1h: ', 'blarms_worker0armada');
-            logger.info(method, 'loggertest1i: ', 'armada');
-            logger.info(method, 'loggertest1i: ', 'brmada');
-            logger.info(method, 'loggertest1i: ', 'armado');
-            logger.info(method, "loggertest2: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armad");
-            logger.info(method, "loggertest3a: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker1armada");
-            logger.info(method, "loggertest3b: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada");
-            logger.info(method, "loggertest3c: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armade");
-            logger.info(method, "loggertest4: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_");
-            logger.info(method, "loggertest5: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_h");
-            logger.info(method, "loggertest6: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0");
-            
-
+          
             //*********************************************************
             //* Read currently existing trigger configs from DB and 
             //* create a trigger for each 
@@ -364,71 +344,8 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                     var initTriggerCounter = 0; 
                     
                     if ( !err && body ) {
-                                             
-                        logger.info(method,  ':before loop num triggersForLater', JSON.stringify(body) );
                         body.forEach(function (triggerConfig) {
-
-                            if ( triggerConfig == null) {
-                                logger.info(method,  ':Emtpy triggerConfig object found ');
-                            }
-                            logger.info(method,  ':in loop num triggersForLater', self.triggersForLaterBuffer.length);
-                            logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
-                            logger.info(method, ':initTriggerkeys = ' , Object.keys(triggerConfig));
-
-                            
-                            logger.info(method, 'triggerConfig id = ',  triggerConfig.id )
-                            logger.info(method, 'triggerConfig id BASE = ',  base64 (triggerConfig.id) )
-                            
-                            logger.info(method, 'triggerConfig id = ', triggerConfig.id.substring(0,15) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,34) )
-                            logger.info(method, 'triggerConfig 35 id = ', triggerConfig.id.substring(0,35) )
-                            logger.info(method, 'triggerConfig 36 id = ', triggerConfig.id.substring(0,36) )
-                            logger.info(method, 'triggerConfig 37 id = ', triggerConfig.id.substring(0,37) )
-                            logger.info(method, 'triggerConfig 38 id = ', triggerConfig.id.substring(0,38) )
-                            logger.info(method, 'triggerConfig 39 id = ', triggerConfig.id.substring(0,39) )
-                            logger.info(method, 'triggerConfig 40 id = ', triggerConfig.id.substring(0,40) )
-                            logger.info(method, 'triggerConfig 45 id = ', triggerConfig.id.substring(0,45) )
-                            logger.info(method, 'triggerConfig 50 id = ', triggerConfig.id.substring(0,50) )
-                            logger.info(method, 'triggerConfig 55 id = ', triggerConfig.id.substring(0,55) )
-                            logger.info(method, 'triggerConfig 56 id = ', triggerConfig.id.substring(0,56) )
-                            logger.info(method, 'triggerConfig 57 id = ', triggerConfig.id.substring(0,57) )
-                            logger.info(method, 'triggerConfig 58 id = ', triggerConfig.id.substring(0,58) )
-                            logger.info(method, 'triggerConfig 59 id = ', triggerConfig.id.substring(0,59) )
-                            logger.info(method, 'triggerConfig 60 id = ', triggerConfig.id.substring(0,60) )
-                            
-                            try {
-                                if ( triggerConfig.id.includes( 'armada_host') ){
-                                    logger.info (method, "test trigger found")
-                                }
-                            } catch(e ){
-                                logger.error(method, ": contains_err = ", e);
-                            }
-
-
-                            logger.info(method, 'triggerConfig key = ',triggerConfig.key)
-                            logger.info(method, 'triggerConfig value = ',triggerConfig.value )
-                            try {
-                                logger.info(method, 'triggerConfig doc base64 = ',  base64 (JSON.stringify(triggerConfig.doc)) )
-                            } catch( err ){
-                                logger.info(method, ":inspect  doc  = ", err);
-                            }
-    
-                            logger.info(method, 'triggerConfig doc = ',util.inspect(triggerConfig.doc)  )
-
-                            try{
-
-                                var inspectString = ':triggerInspect  = ' + util.inspect(triggerConfig)
-                                logger.info(method, inspectString);
-                            } catch( err ){
-                                logger.info(method, ":inspectError = ", err);
-                            }
-
-
-                            var infoString = ':triggerInfo  = ' + JSON.stringify(triggerConfig);
-                            logger.info(method, infoString);
-                            logger.info(method,  ':triggerConfig  = ', triggerConfig.__proto__.constructor.name);
-                            logger.info(method,  ':triggerConfig  =', JSON.stringify(triggerConfig) );
-                        
+                            logger.info (method, " : initializing trigger counter = ", initTriggerCounter);
                             if ( initTriggerCounter < self.maxConcurrentTriggerInitializer) {
                                 //*******************************************************************
                                 //* Start an initializer with its first triggerConfig to initialize 
@@ -440,7 +357,10 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 initTriggerCounter +=1;
                             } else {
                                 logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
-                                self.triggersForLaterBuffer.push(triggerConfig);
+                                if ( ! triggerConfig.id.includes( 'armada_host') ){
+                                    logger.info (method, "test trigger found")
+                                    self.triggersForLaterBuffer.push(triggerConfig);
+                                }
                                 initTriggerCounter +=1;
                             }    
                         })
