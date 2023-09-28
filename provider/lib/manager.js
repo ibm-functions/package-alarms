@@ -354,16 +354,23 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                             logger.info(method,  ':initTriggerCounter = ', initTriggerCounter);
                             logger.info(method, ':initTriggerkeys = ' , Object.keys(triggerConfig));
 
-                            logger.info(method, 'triggerConfig id = ',  base64 (triggerConfig.id) )
                             
-
+                            logger.info(method, 'triggerConfig id = ',  triggerConfig.id )
+                            logger.info(method, 'triggerConfig id BASE = ',  base64 (triggerConfig.id) )
+                            
                             logger.info(method, 'triggerConfig id = ', triggerConfig.id.substring(0,15) )
                             logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,34) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,35) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,36) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,37) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,38) )
-                            logger.info(method, 'triggerConfig 34 id = ', triggerConfig.id.substring(0,39) )
+                            logger.info(method, 'triggerConfig 35 id = ', triggerConfig.id.substring(0,35) )
+                            logger.info(method, 'triggerConfig 36 id = ', triggerConfig.id.substring(0,36) )
+                            logger.info(method, 'triggerConfig 37 id = ', triggerConfig.id.substring(0,37) )
+                            logger.info(method, 'triggerConfig 38 id = ', triggerConfig.id.substring(0,38) )
+                            logger.info(method, 'triggerConfig 39 id = ', triggerConfig.id.substring(0,39) )
+                            logger.info(method, 'triggerConfig 40 id = ', triggerConfig.id.substring(0,40) )
+                            logger.info(method, 'triggerConfig 45 id = ', triggerConfig.id.substring(0,45) )
+                            logger.info(method, 'triggerConfig 50 id = ', triggerConfig.id.substring(0,50) )
+                            logger.info(method, 'triggerConfig 55 id = ', triggerConfig.id.substring(0,55) )
+                            logger.info(method, 'triggerConfig 60 id = ', triggerConfig.id.substring(0,60) )
+                            
                             
                             try {
                                 if ( triggerConfig.id.includes( 'armada_host') ){
