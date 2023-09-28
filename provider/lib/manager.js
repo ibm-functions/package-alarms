@@ -323,6 +323,15 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
         try{
             logger.info(method, 'resetting system from last state');
+            logger.info(method, "test1: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0_1695803541249");
+            logger.info(method, "test2: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armad");
+            logger.info(method, "test3: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada");
+            logger.info(method, "test4: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_");
+            logger.info(method, "test5: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_h");
+            logger.info(method, "test6: ", "9cfe57a0-7ac1-4bf4-9026-d7e9e591271f/_/alarms_worker0armada_host0");
+            
+            
+
             //*********************************************************
             //* Read currently existing trigger configs from DB and 
             //* create a trigger for each 
