@@ -46,7 +46,9 @@ function getMessage(argsObject) {
     args.shift();
     args.forEach(function (arg, i) {
         if (_.isObject(args[i])) {
+            console.log( "do SafeStringify for arg nr: ",i," with arg = "  , arg[i])
             args[i] = safeStringify(args[i]);
+            console.log( "bin fertig for arg nr = " , i)
         }
     });
     console.log( "bin da with args" , args)
