@@ -357,7 +357,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                                 initTriggerCounter +=1;
                             } else {
                                 if ( ! triggerConfig.id.includes( 'armada_host') ){
-                                    logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig );
+                                    logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig.id );
                                     self.triggersForLaterBuffer.push(triggerConfig);
                                 } else {
                                     logger.info (method, ": unexpected test triggerConfig found in alarmProvider configDB : ", triggerConfig.id)
