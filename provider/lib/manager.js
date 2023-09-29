@@ -51,7 +51,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.numOfConfiguredTriggers = 0;
     self.numOfActivatedTriggers = 0;
     self.numOfNotActivatedTriggers = 0;   
-    self.maxConcurrentTriggerInitializer = 1;  //** 500 parallel running Initializers to setup all triggers calling createTrigger()
+    self.maxConcurrentTriggerInitializer = 500;  //** 500 parallel running Initializers to setup all triggers calling createTrigger()
     self.triggersForLaterBuffer = [];
 
     self.databaseName = databaseName;
