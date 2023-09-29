@@ -40,7 +40,8 @@ DB_NAME="${4}alarmservice"
 APIHOST="$5"
 WORKERS="$6"
 LIMIT_CRON_FIELDS="${LIMIT_CRON_FIELDS}"
-ACTION_RUNTIME_VERSION=${ACTION_RUNTIME_VERSION:="nodejs:16"}
+## If script is called by the provider deployment, then the ansible config set the Action_runtime_Version to "default" !!
+ACTION_RUNTIME_VERSION=${ACTION_RUNTIME_VERSION:="nodejs:20"}
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
 # first argument as the key itself.
