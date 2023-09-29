@@ -373,13 +373,13 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         })
                         
                         logger.info(method, ': number of remaining triggers that will be initialized later', self.triggersForLaterBuffer.length);
-                        self.numOfConfiguredTriggers = initializerNumber + self.triggersForLaterBuffer.length ;  //* num of real customer triggers in config DB  
+                        self.numOfConfiguredTriggers = initializerNumber - 1  + self.triggersForLaterBuffer.length ;  //* num of real customer triggers in config DB  
                         
                         //***********************************************************************
                         //* write a log statement about the started triggers within the first 10 min 
                         //***********************************************************************
                         setTimeout(function() {
-                            logger.info(method,  ': tried to start ', self.numOfConfiguredTriggers , ' configured  alarm triggers.' , self.numOfActivatedTriggers , ' initiated successfully and ', self.numOfNotActivatedTriggers , ' did not initialize');
+                            logger.info(method,  ': tried to start ', self.numOfConfiguredTriggers  , ' configured  alarm triggers.' , self.numOfActivatedTriggers , ' initiated successfully and ', self.numOfNotActivatedTriggers , ' did not initialize');
                             //*******************************************************************************************
                             //* log a WARN message, if num of not initialized triggers is between 1% and 5 % of all 
                             //* log an Error message, if num of not initialized triggers is higher than 5 % of all 
