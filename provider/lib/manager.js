@@ -26,7 +26,6 @@ var Sanitizer = require('./sanitizer');
 var authHandler = require('./authHandler');
 var https = require('https');
 
-const util = require('node:util');
 
 module.exports = function (logger, triggerDB, redisClient, databaseName) {
 
@@ -52,7 +51,7 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
     self.numOfConfiguredTriggers = 0;
     self.numOfActivatedTriggers = 0;
     self.numOfNotActivatedTriggers = 0;   
-    self.maxConcurrentTriggerInitializer = 2;  //** TODO : increase to 1000
+    self.maxConcurrentTriggerInitializer = 500;  //** 500 parallel running Initializers to setup all triggers calling createTrigger()
     self.triggersForLaterBuffer = [];
 
     self.databaseName = databaseName;
@@ -341,32 +340,40 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                 if ( response.result) {
                     var err = response.result.error; 
                     var body = response.result.rows; 
-                    var initTriggerCounter = 0; 
+                    var triggerNumber = 1; 
+                    var initializerNumber = 1; 
                     
                     if ( !err && body ) {
                         body.forEach(function (triggerConfig) {
-                            logger.info (method, " : initializing trigger counter = ", initTriggerCounter);
-                            if ( initTriggerCounter < self.maxConcurrentTriggerInitializer) {
-                                //*******************************************************************
-                                //* Start an initializer with its first triggerConfig to initialize 
-                                //* Intention to start configure max num of Initializers. An initializer 
-                                //* first start the first provided triggerConfig. If that initialization 
-                                //* is finished, then it pull the next trigger to start from the triggersForLaterBuffer. 
-                                //*******************************************************************
-                                triggerInitializer(triggerConfig, initTriggerCounter );
-                                initTriggerCounter +=1;
+                            logger.info (method, " : initializing trigger number = ", triggerNumber);
+                            //******************************************************************
+                            //* The triggerConfigDB contains for a short period of time test-triggers,too.
+                            //* These triggers must be ignored 
+                            //******************************************************************
+                            if ( triggerConfig.id.includes( 'armada_host') ){
+                                logger.info (method, ": unexpected test triggerConfig found in alarmProvider configDB : ", triggerConfig.id)
                             } else {
-                                if ( ! triggerConfig.id.includes( 'armada_host') ){
-                                    logger.info(method,  ': add following triggerConfig to laterBuffer',triggerConfig.id );
-                                    self.triggersForLaterBuffer.push(triggerConfig);
+                                if ( initializerNumber <= self.maxConcurrentTriggerInitializer) {
+                                    //*******************************************************************
+                                    //* INTENTION: limit parall running "createTriggers" running a lot of http requests
+                                    //*            by using a dedicated number of initializers doing creates in sequence
+                                    //* Start an initializer with its first triggerConfig to initialize 
+                                    //* Intention to start configure max num of Initializers. An initializer 
+                                    //* first start the first provided triggerConfig. If that initialization 
+                                    //* is finished, then it pull the next trigger to start from the triggersForLaterBuffer. 
+                                    //*******************************************************************
+                                    triggerInitializer(triggerConfig, initializerNumber );
+                                    initializerNumber +=1; 
                                 } else {
-                                    logger.info (method, ": unexpected test triggerConfig found in alarmProvider configDB : ", triggerConfig.id)
-                                }
-                                initTriggerCounter +=1;
-                            }    
+                                    logger.info(method, ': add following triggerConfig to Buffer for later initialization',triggerConfig.id );
+                                    self.triggersForLaterBuffer.push(triggerConfig);
+                                }  
+                            }
+                            triggerNumber +=1;      
                         })
                         
-                        logger.info(method,  ': num triggersForLater', self.triggersForLaterBuffer.length);
+                        logger.info(method, ': number of remaining triggers that will be initialized later', self.triggersForLaterBuffer.length);
+                        self.numOfConfiguredTriggers = initializerNumber + self.triggersForLaterBuffer.length ;  //* num of real customer triggers in config DB  
                         
                         //***********************************************************************
                         //* write a log statement about the started triggers within the first 10 min 
@@ -416,7 +423,6 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
         var triggerIdentifier = triggerConfig.id;
         var doc = triggerConfig.doc;
         if (!(triggerIdentifier in self.triggers) && !doc.monitor) {
-            self.numOfConfiguredTriggers += 1;  //* num of customer triggers in config DB  
             //check if trigger still exists in whisk db
             var namespace = doc.namespace;
             var name = doc.name;
