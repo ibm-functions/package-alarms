@@ -462,10 +462,16 @@ module.exports = function (logger, triggerDB, redisClient, databaseName) {
                         //* TriggerInitializer has finished the HTTP external calls, so it can 
                         //* process the next trigger to initialize , now . 
                         //****************************************************************************
-                        if ( self.triggersForLaterBuffer.length > 0 ) {
-                            setTimeout(() => triggerInitializer(self.triggersForLaterBuffer.shift(), initializerNumber), 0);
+                        var nextTriggerConfig = self.triggersForLaterBuffer.shift(); 
+                        //**************************************************************
+                        //* Because parallel running initializers it maybe that another 
+                        //* initializer already read the last element from the buffer, 
+                        //* so  the .shift() returns an undefined object 
+                        //**************************************************************
+                        if ( nextTriggerConfig ) {
+                            setTimeout(() => triggerInitializer(nextTriggerConfig, initializerNumber), 0);
                         }
-
+                       
                         return scheduleTrigger(alarm,triggerIdentifier)
                     })
                     .then(cachedTrigger => {
