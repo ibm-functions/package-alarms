@@ -1,3 +1,11 @@
+# This repository is no longer maintained.
+IBM Cloud Functions reached end of life and this repository is no longer active.
+
+For Apache OpenWhisk visit: [https://github.com/apache/openwhisk](https://github.com/apache/openwhisk).
+
+---
+
+
 # Using the Alarm package
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
